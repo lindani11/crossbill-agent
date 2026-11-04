@@ -86,7 +86,10 @@ export type PayPalInvoice = {
   primary_recipients?: { billing_info?: { name?: { given_name?: string; surname?: string; full_name?: string }; email_address?: string } }[];
   amount?: { value: string; currency_code: string };
   due_amount?: Money;
-  payments?: { paid_amount?: Money };
+  payments?: {
+    paid_amount?: Money;
+    transactions?: { payment_id?: string; payment_date?: string; amount?: Money }[];
+  };
   links?: { href: string; rel: string; method?: string }[];
 };
 

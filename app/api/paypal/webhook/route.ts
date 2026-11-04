@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyWebhookSignature, type PayPalInvoice } from "@/lib/paypal";
+import { getInvoice, verifyWebhookSignature, type PayPalInvoice } from "@/lib/paypal";
 import { formatZar, usdToZar } from "@/lib/fx";
 
 export const runtime = "nodejs";
@@ -8,18 +8,15 @@ type WebhookEvent = {
   id: string;
   event_type: string;
   create_time?: string;
-  resource?: PayPalInvoice & {
-    payments?: {
-      paid_amount?: { value: string; currency_code: string };
-      transactions?: { payment_date?: string; amount?: { value: string; currency_code: string } }[];
-    };
-  };
+  // Invoicing events wrap the invoice as resource.invoice; accept both shapes.
+  resource?: { invoice?: Partial<PayPalInvoice> } & Partial<PayPalInvoice>;
 };
 
 /**
  * PayPal calls this when an invoice is paid. We only trust the event after
- * PayPal itself confirms the signature, then record the payment with its
- * rand value. Storage in Supabase comes next; for now it goes to the logs.
+ * PayPal itself confirms the signature, then re-read the invoice from PayPal
+ * so the amount comes from PayPal's records, not the webhook body.
+ * Storage in Supabase comes next; for now the record goes to the logs.
  */
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -45,12 +42,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Signature verification failed" }, { status: 401 });
   }
 
-  if (event.event_type !== "INVOICING.INVOICE.PAID" || !event.resource) {
+  if (event.event_type !== "INVOICING.INVOICE.PAID") {
     // Acknowledge other events so PayPal doesn't keep retrying them.
     return NextResponse.json({ ok: true, ignored: event.event_type });
   }
 
-  const inv = event.resource;
+  const fromEvent = event.resource?.invoice ?? event.resource;
+  const invoiceId = fromEvent?.id;
+  if (!invoiceId) {
+    console.error("[webhook] paid event without an invoice id; resource keys:", Object.keys(event.resource ?? {}));
+    // 200 so PayPal stops retrying an event we can never process.
+    return NextResponse.json({ ok: false, error: "No invoice id in event" });
+  }
+
+  // Authoritative copy from PayPal; fall back to the event body if that fails.
+  let inv: Partial<PayPalInvoice> = fromEvent ?? {};
+  try {
+    inv = await getInvoice(invoiceId);
+  } catch (err) {
+    console.error("[webhook] could not re-read invoice, using event body", invoiceId, err);
+  }
+
   const paid = inv.payments?.paid_amount ?? inv.amount;
   const paidOn =
     inv.payments?.transactions?.[0]?.payment_date ?? event.create_time ?? new Date().toISOString();
@@ -61,8 +73,9 @@ export async function POST(req: Request) {
 
   const record = {
     event_id: event.id,
-    invoice_id: inv.id,
+    invoice_id: invoiceId,
     invoice_number: inv.detail?.invoice_number ?? null,
+    status: inv.status ?? null,
     paid_usd: usd,
     paid_on: paidOn,
     usd_zar_rate: fx?.rate ?? null,
@@ -70,7 +83,8 @@ export async function POST(req: Request) {
     paid_zar: zar,
   };
   console.log(
-    `[payment] invoice #${record.invoice_number} paid $${usd?.toFixed(2)}` +
+    `[payment] invoice #${record.invoice_number ?? "?"} paid ` +
+      (usd !== null ? `$${usd.toFixed(2)}` : "(amount unknown)") +
       (zar !== null ? ` = ${formatZar(zar)} at ${fx?.rate} (${fx?.date})` : " (no FX rate)"),
     JSON.stringify(record),
   );
