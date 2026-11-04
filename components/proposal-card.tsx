@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { formatUsd, type Proposal } from "@/lib/schemas";
+import { describeQuantity, formatUsd, type Proposal } from "@/lib/schemas";
 
 type SendState =
   | { status: "idle" }
@@ -84,7 +84,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
                     {it.description ? <span className="block text-xs text-[var(--muted)]">{it.description}</span> : null}
                   </td>
                   <td className="py-2 pr-2 text-right tabular-nums text-[var(--muted)]">
-                    {it.quantity} × {formatUsd(it.unit_amount)}
+                    {describeQuantity(it)}
                   </td>
                   <td className="py-2 text-right tabular-nums">{formatUsd(it.quantity * it.unit_amount)}</td>
                 </tr>

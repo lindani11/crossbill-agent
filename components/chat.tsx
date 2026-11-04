@@ -11,10 +11,14 @@ type Message = {
   provider?: string;
 };
 
+// One example per kind of freelancer, to show Crossbill works for any field.
 const EXAMPLES = [
-  "Invoice Sarah Lee (sarah@example.com) for 3 days of Next.js work at $250 a day plus $120 for hosting setup",
-  "Who owes me money right now?",
-  "Draft a polite reminder for my oldest unpaid invoice",
+  { who: "Tutor", text: "Invoice Emma Brown (emma.brown@example.com) for 8 online maths lessons at $20 each in October" },
+  { who: "Translator", text: "Bill Acme Ltd (accounts@acme.example.com) for translating 4,500 words from English to isiZulu at $0.08 a word" },
+  { who: "Designer", text: "Invoice Bloom Café (hello@bloomcafe.example.com) a flat $450 for a logo and brand kit, due on receipt" },
+  { who: "Developer", text: "Invoice Sarah Lee (sarah@example.com) for 3 days of Next.js work at $250 a day plus $120 for hosting setup" },
+  { who: "Virtual assistant", text: "Invoice James Cole (james@example.com) for 20 hours of admin support at $12 an hour" },
+  { who: "Any freelancer", text: "Who owes me money right now?" },
 ];
 
 export default function Chat() {
@@ -61,15 +65,18 @@ export default function Chat() {
       <div className="flex-1 space-y-4 py-2">
         {messages.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--line)] p-4">
-            <p className="text-sm font-medium">Try one of these:</p>
+            <p className="text-sm font-medium">Works for any freelancer. Try one:</p>
             <div className="mt-3 flex flex-col gap-2">
               {EXAMPLES.map((ex) => (
                 <button
-                  key={ex}
-                  onClick={() => send(ex)}
+                  key={ex.text}
+                  onClick={() => send(ex.text)}
                   className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-left text-sm hover:border-[var(--accent)]"
                 >
-                  {ex}
+                  <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                    {ex.who}
+                  </span>
+                  {ex.text}
                 </button>
               ))}
             </div>

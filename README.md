@@ -4,6 +4,10 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Runs on the PayPal **sandbox** only.
 
+## Who it's for
+
+Any freelancer paid from abroad: tutors, translators, designers, writers, virtual assistants, photographers, consultants and developers. Crossbill bills by the hour (`HOURS`), per item such as lessons, words or days (`QUANTITY`), or as a flat fee (`AMOUNT`), using PayPal's own units of measure.
+
 ## How it works
 
 1. You describe a job in plain language: *"Invoice Sarah Lee (sarah@example.com) for 3 days at $250 a day plus $120 hosting setup."*

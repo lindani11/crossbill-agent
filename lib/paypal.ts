@@ -174,13 +174,18 @@ export async function createAndSendInvoice(
           },
         },
       ],
-      items: proposal.items.map((it) => ({
-        name: it.name,
-        description: it.description,
-        quantity: String(it.quantity),
-        unit_amount: { currency_code: "USD", value: it.unit_amount.toFixed(2) },
-        unit_of_measure: "QUANTITY",
-      })),
+      items: proposal.items.map((it) => {
+        // A flat fee is one line of the full amount, whatever quantity the model sent.
+        const flat = it.unit === "AMOUNT";
+        const value = flat ? it.quantity * it.unit_amount : it.unit_amount;
+        return {
+          name: it.name,
+          description: it.description,
+          quantity: flat ? "1" : String(it.quantity),
+          unit_amount: { currency_code: "USD", value: value.toFixed(2) },
+          unit_of_measure: it.unit ?? "QUANTITY",
+        };
+      }),
     },
   });
 

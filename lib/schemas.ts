@@ -3,6 +3,10 @@ import { z } from "zod";
 export const PAYMENT_TERMS = ["DUE_ON_RECEIPT", "NET_10", "NET_15", "NET_30"] as const;
 export type PaymentTerm = (typeof PAYMENT_TERMS)[number];
 
+/** PayPal's units of measure for invoice lines. */
+export const UNITS = ["QUANTITY", "HOURS", "AMOUNT"] as const;
+export type Unit = (typeof UNITS)[number];
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** One invoice line, amounts in USD. */
@@ -11,6 +15,7 @@ export const lineItemSchema = z.object({
   description: z.string().max(1000).optional(),
   quantity: z.number().positive().max(100000),
   unit_amount: z.number().min(0).max(1000000),
+  unit: z.enum(UNITS).optional(),
 });
 
 /**
@@ -58,6 +63,14 @@ export function invoiceTotal(items: InvoiceProposal["items"]): number {
     0,
   );
   return cents / 100;
+}
+
+/** How a line's quantity reads on screen, e.g. "20 h × $12.00" or "Flat fee". */
+export function describeQuantity(item: { quantity: number; unit_amount: number; unit?: Unit }): string {
+  if (item.unit === "AMOUNT") return "Flat fee";
+  const qty = new Intl.NumberFormat("en-US").format(item.quantity);
+  const rate = formatUsd(item.unit_amount);
+  return item.unit === "HOURS" ? `${qty} h × ${rate}/h` : `${qty} × ${rate}`;
 }
 
 export function formatUsd(value: number): string {

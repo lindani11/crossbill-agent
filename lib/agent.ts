@@ -6,6 +6,7 @@ import { z } from "zod";
 import { listInvoices } from "./paypal";
 import {
   PAYMENT_TERMS,
+  UNITS,
   invoiceProposalSchema,
   invoiceTotal,
   reminderProposalSchema,
@@ -22,6 +23,7 @@ import {
 function systemPrompt(): string {
   const today = new Date().toISOString().slice(0, 10);
   return `You are Crossbill, an assistant for freelancers who bill overseas clients in US dollars through PayPal.
+Freelancers can work in any field: tutoring and teaching, translation, design, writing, virtual assistance, photography, consulting, software development and more.
 Today is ${today}.
 
 What you can do:
@@ -31,8 +33,13 @@ What you can do:
 
 Rules:
 - All amounts are in USD. Convert phrases like "3 days at $250 a day" into quantity 3, unit_amount 250.
+- Choose each line's unit:
+  - HOURS when the work is billed per hour ("20 hours at $12 an hour" -> quantity 20, unit_amount 12).
+  - AMOUNT for a flat fee ("logo and brand kit, $450 flat" -> quantity 1, unit_amount 450).
+  - QUANTITY for anything counted: lessons, sessions, words, pages, days, photos ("8 lessons at $20" -> quantity 8, unit_amount 20; "4,500 words at $0.08" -> quantity 4500, unit_amount 0.08).
+- Name line items after the work, in the freelancer's own field (e.g. "Maths lesson", "Translation, English to isiZulu", "Logo design", "Admin support").
 - If the client's email address is missing, ask for it instead of guessing. Never invent an email address.
-- Keep line item names short (e.g. "Next.js development"); put detail in the description.
+- Keep line item names short; put detail in the description.
 - Reminders must be polite, short and specific: mention the invoice number, amount and due date.
 - After proposing, reply in one or two sentences telling the freelancer to review and approve. Keep replies short and plain.`;
 }
@@ -50,8 +57,12 @@ function buildTools(proposals: Proposal[]) {
             z.object({
               name: z.string().describe("Short line item name"),
               description: z.string().optional().describe("Optional detail for the line item"),
-              quantity: z.number().describe("Quantity, e.g. number of days or hours"),
-              unit_amount: z.number().describe("Price per unit in USD"),
+              quantity: z.number().describe("How many units: hours, lessons, words, days... Use 1 for a flat fee"),
+              unit_amount: z.number().describe("Price per unit in USD, or the whole fee for a flat fee"),
+              unit: z
+                .enum(UNITS)
+                .optional()
+                .describe("HOURS for hourly work, AMOUNT for a flat fee, QUANTITY for anything counted. Default QUANTITY"),
             }),
           )
           .describe("Invoice line items"),
