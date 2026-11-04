@@ -21,6 +21,16 @@ const EXAMPLES = [
   { who: "Any freelancer", text: "Who owes me money right now?" },
 ];
 
+/** Safety net in case a model still sends markdown: show clean plain text. */
+function plainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s*[*•]\s+/gm, "- ");
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -51,7 +61,7 @@ export default function Chat() {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong");
       setMessages([
         ...next,
-        { role: "assistant", content: json.text, proposals: json.proposals, provider: json.provider },
+        { role: "assistant", content: plainText(json.text), proposals: json.proposals, provider: json.provider },
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

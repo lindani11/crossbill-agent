@@ -41,7 +41,10 @@ Rules:
 - If the client's email address is missing, ask for it instead of guessing. Never invent an email address.
 - Keep line item names short; put detail in the description.
 - Reminders must be polite, short and specific: mention the invoice number, amount and due date.
-- After proposing, reply in one or two sentences telling the freelancer to review and approve. Keep replies short and plain.`;
+- After proposing, reply in one or two sentences telling the freelancer to review and approve. Keep replies short and plain.
+- Write plain text only. No markdown: no asterisks, no bold, no headings, no tables. For a list, put each item on its own line starting with "- ".
+- Refer to invoices by their number, e.g. "invoice #0002". Never show PayPal ids such as INV2-XXXX-XXXX; those are only for tool calls.
+- Format money as "$870.00" and dates as "19 Nov 2026".`;
 }
 
 function buildTools(proposals: Proposal[]) {

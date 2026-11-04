@@ -221,3 +221,51 @@ export async function sendReminder(reminder: ReminderProposal): Promise<void> {
     },
   });
 }
+
+// ---------- Webhooks ----------
+
+export type WebhookHeaders = {
+  authAlgo: string | null;
+  certUrl: string | null;
+  transmissionId: string | null;
+  transmissionSig: string | null;
+  transmissionTime: string | null;
+};
+
+/**
+ * Asks PayPal whether a webhook really came from PayPal for our webhook id.
+ * Returns false (never throws) when anything is missing or PayPal says no.
+ */
+export async function verifyWebhookSignature(
+  headers: WebhookHeaders,
+  event: unknown,
+): Promise<boolean> {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  if (!webhookId) {
+    console.error("[webhook] PAYPAL_WEBHOOK_ID is not set");
+    return false;
+  }
+  if (Object.values(headers).some((v) => !v)) return false;
+
+  try {
+    const res = await paypal<{ verification_status: string }>(
+      "/v1/notifications/verify-webhook-signature",
+      {
+        method: "POST",
+        body: {
+          auth_algo: headers.authAlgo,
+          cert_url: headers.certUrl,
+          transmission_id: headers.transmissionId,
+          transmission_sig: headers.transmissionSig,
+          transmission_time: headers.transmissionTime,
+          webhook_id: webhookId,
+          webhook_event: event,
+        },
+      },
+    );
+    return res.verification_status === "SUCCESS";
+  } catch (err) {
+    console.error("[webhook] verification call failed", err);
+    return false;
+  }
+}
