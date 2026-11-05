@@ -19,7 +19,7 @@ No sign-up needed.
    | Sandbox buyer (client) | |
    | --- | --- |
    | Email | `sb-0dyw4353715522@personal.example.com` |
-   | Password | `<<ADD BUYER PASSWORD>>` |
+   | Password | `bDch:9p*` |
 
    Pay the invoice with the buyer's PayPal balance.
 4. Back in Crossbill, ask **"Who owes me and who has paid?"** The invoice now shows as PAID.
