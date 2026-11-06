@@ -140,26 +140,30 @@ export default function Receivables() {
     () => [
       // Min widths let the columns fit a desktop screen; on a phone the middle
       // scrolls while the local-currency column stays pinned on the right.
-      { field: "number", headerName: "Invoice", minWidth: 85, valueFormatter: (p) => (p.value ? `#${p.value}` : "") },
-      { field: "client", headerName: "Client", minWidth: 130 },
-      { field: "status", headerName: "Status", minWidth: 105, cellRenderer: StatusChip },
-      { field: "total_usd", headerName: "Total (USD)", minWidth: 110, type: "rightAligned", valueFormatter: money("USD") },
-      { field: "due_usd", headerName: "Due (USD)", minWidth: 100, type: "rightAligned", valueFormatter: money("USD") },
-      { field: "due_date", headerName: "Due date", minWidth: 110, valueFormatter: date },
+      // Filters only where they help (client, status); a filter button on every
+      // column took ~30px each and squeezed the headers.
+      { field: "number", headerName: "Invoice", minWidth: 85, filter: false, valueFormatter: (p) => (p.value ? `#${p.value}` : "") },
+      { field: "client", headerName: "Client", minWidth: 130, tooltipField: "client" },
+      { field: "status", headerName: "Status", minWidth: 110, cellRenderer: StatusChip },
+      { field: "total_usd", headerName: "Total (USD)", minWidth: 90, filter: false, type: "rightAligned", valueFormatter: money("USD") },
+      { field: "due_usd", headerName: "Due (USD)", minWidth: 85, filter: false, type: "rightAligned", valueFormatter: money("USD") },
+      { field: "due_date", headerName: "Due date", minWidth: 105, filter: false, valueFormatter: date },
       {
         field: "days_overdue",
         headerName: "Overdue",
         headerTooltip: "Days overdue",
         minWidth: 90,
+        filter: false,
         type: "rightAligned",
         valueFormatter: (p) => (p.value ? `${p.value} d` : ""),
       },
-      { field: "paid_on", headerName: "Paid on", minWidth: 110, valueFormatter: date },
-      { field: "paid_usd", headerName: "Paid (USD)", minWidth: 100, type: "rightAligned", valueFormatter: money("USD") },
+      { field: "paid_on", headerName: "Paid on", minWidth: 105, filter: false, valueFormatter: date },
+      { field: "paid_usd", headerName: "Paid (USD)", minWidth: 90, filter: false, type: "rightAligned", valueFormatter: money("USD") },
       {
         field: "fx_rate",
         headerName: `USD/${currency}`,
         minWidth: 95,
+        filter: false,
         type: "rightAligned",
         valueFormatter: (p) => (p.value ? (p.value as number).toFixed(4) : ""),
         headerTooltip: "Exchange rate for the payment date (European Central Bank reference rate)",
@@ -167,9 +171,10 @@ export default function Receivables() {
       {
         field: "paid_local",
         headerName: `Paid (${currency})`,
-        width: 135,
+        width: 130,
         pinned: "right",
         suppressSizeToFit: true,
+        filter: false,
         type: "rightAligned",
         valueFormatter: money(currency),
         cellClass: "font-semibold",
@@ -177,6 +182,8 @@ export default function Receivables() {
     ],
     [currency],
   );
+  // Hovering a header shows its full name.
+  const columnDefs = useMemo(() => columns.map((c) => ({ headerTooltip: c.headerName, ...c })), [columns]);
 
   const localWord = currency === "ZAR" ? "rand" : currency;
 
@@ -228,8 +235,16 @@ export default function Receivables() {
         <AgGridReact<Row>
           theme={theme}
           rowData={rows ?? undefined}
-          columnDefs={columns}
-          defaultColDef={{ sortable: true, filter: true, resizable: true }}
+          columnDefs={columnDefs}
+          defaultColDef={{
+            sortable: true,
+            filter: true,
+            resizable: true,
+            // Long header names wrap onto two lines instead of being cut off.
+            wrapHeaderText: true,
+            autoHeaderHeight: true,
+          }}
+          tooltipShowDelay={300}
           autoSizeStrategy={{ type: "fitGridWidth" }}
           onGridSizeChanged={(e) => e.api.sizeColumnsToFit()}
           loading={rows === null && !error}
