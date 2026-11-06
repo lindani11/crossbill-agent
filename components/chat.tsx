@@ -19,6 +19,7 @@ const EXAMPLES = [
   { who: "Developer", text: "Invoice Sarah Lee (sarah@example.com) for 3 days of Next.js work at $250 a day plus $120 for hosting setup" },
   { who: "Virtual assistant", text: "Invoice James Cole (james@example.com) for 20 hours of admin support at $12 an hour" },
   { who: "Any freelancer", text: "Who owes me money right now?" },
+  { who: "Tax time", text: "How much did I earn this tax year, in rand?" },
 ];
 
 /** Safety net in case a model still sends markdown: show clean plain text. */

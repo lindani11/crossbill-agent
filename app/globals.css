@@ -34,3 +34,28 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Statement print view: black on white, no buttons or navigation. */
+@media print {
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --ink: #000000;
+    --muted: #444444;
+    --line: #cccccc;
+    --accent: #0f5c47;
+    --accent-ink: #ffffff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
+}

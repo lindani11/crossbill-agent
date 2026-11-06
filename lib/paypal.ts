@@ -158,39 +158,58 @@ export async function createAndSendInvoice(
     { method: "POST" },
   );
 
-  const draft = await paypal<PayPalInvoice>("/v2/invoicing/invoices", {
-    method: "POST",
-    headers: { Prefer: "return=representation", "PayPal-Request-Id": requestId },
-    body: {
-      detail: {
-        invoice_number,
-        invoice_date: today(),
-        currency_code: "USD",
-        note: proposal.note,
-        payment_term: { term_type: term },
-      },
-      primary_recipients: [
-        {
-          billing_info: {
-            name: splitName(proposal.client_name),
-            email_address: proposal.client_email,
-          },
-        },
-      ],
-      items: proposal.items.map((it) => {
-        // A flat fee is one line of the full amount, whatever quantity the model sent.
-        const flat = it.unit === "AMOUNT";
-        const value = flat ? it.quantity * it.unit_amount : it.unit_amount;
-        return {
-          name: it.name,
-          description: it.description,
-          quantity: flat ? "1" : String(it.quantity),
-          unit_amount: { currency_code: "USD", value: value.toFixed(2) },
-          unit_of_measure: it.unit ?? "QUANTITY",
-        };
-      }),
+  // The name clients see on the invoice, e.g. "Lindani Mthembu Studio".
+  const businessName = process.env.BUSINESS_NAME?.trim().slice(0, 300) || undefined;
+
+  const body = (withInvoicer: boolean) => ({
+    detail: {
+      invoice_number,
+      invoice_date: today(),
+      currency_code: "USD",
+      note: proposal.note,
+      payment_term: { term_type: term },
     },
+    ...(withInvoicer && businessName ? { invoicer: { business_name: businessName } } : {}),
+    primary_recipients: [
+      {
+        billing_info: {
+          name: splitName(proposal.client_name),
+          email_address: proposal.client_email,
+        },
+      },
+    ],
+    items: proposal.items.map((it) => {
+      // A flat fee is one line of the full amount, whatever quantity the model sent.
+      const flat = it.unit === "AMOUNT";
+      const value = flat ? it.quantity * it.unit_amount : it.unit_amount;
+      return {
+        name: it.name,
+        description: it.description,
+        quantity: flat ? "1" : String(it.quantity),
+        unit_amount: { currency_code: "USD", value: value.toFixed(2) },
+        unit_of_measure: it.unit ?? "QUANTITY",
+      };
+    }),
   });
+
+  let draft: PayPalInvoice;
+  try {
+    draft = await paypal<PayPalInvoice>("/v2/invoicing/invoices", {
+      method: "POST",
+      headers: { Prefer: "return=representation", "PayPal-Request-Id": requestId },
+      body: body(true),
+    });
+  } catch (err) {
+    // If PayPal ever rejects the business name, send the invoice without it
+    // rather than fail the freelancer's invoice.
+    if (!businessName || !(err instanceof PayPalError) || err.status !== 400) throw err;
+    console.warn("[paypal] invoice rejected with business_name, retrying without it", err.message);
+    draft = await paypal<PayPalInvoice>("/v2/invoicing/invoices", {
+      method: "POST",
+      headers: { Prefer: "return=representation", "PayPal-Request-Id": `${requestId}-plain` },
+      body: body(false),
+    });
+  }
 
   await paypal(`/v2/invoicing/invoices/${draft.id}/send`, {
     method: "POST",
@@ -206,11 +225,15 @@ export async function getInvoice(id: string): Promise<PayPalInvoice> {
   return paypal<PayPalInvoice>(`/v2/invoicing/invoices/${encodeURIComponent(id)}`);
 }
 
-export async function listInvoices(pageSize = 20): Promise<InvoiceSummary[]> {
+export async function listInvoicesRaw(pageSize = 20): Promise<PayPalInvoice[]> {
   const res = await paypal<{ items?: PayPalInvoice[] }>(
     `/v2/invoicing/invoices?page=1&page_size=${pageSize}&total_required=false`,
   );
-  return (res.items ?? []).map(summarize);
+  return res.items ?? [];
+}
+
+export async function listInvoices(pageSize = 20): Promise<InvoiceSummary[]> {
+  return (await listInvoicesRaw(pageSize)).map(summarize);
 }
 
 export async function sendReminder(reminder: ReminderProposal): Promise<void> {

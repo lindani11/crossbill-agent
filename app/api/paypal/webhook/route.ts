@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInvoice, verifyWebhookSignature, type PayPalInvoice } from "@/lib/paypal";
-import { formatZar, usdToZar } from "@/lib/fx";
+import { formatLocal, localCurrency, usdToLocal } from "@/lib/fx";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,8 @@ type WebhookEvent = {
  * PayPal calls this when an invoice is paid. We only trust the event after
  * PayPal itself confirms the signature, then re-read the invoice from PayPal
  * so the amount comes from PayPal's records, not the webhook body.
- * Storage in Supabase comes next; for now the record goes to the logs.
+ * No database: the dashboard and statement rebuild the books from PayPal,
+ * so this route confirms the payment and logs it in local currency.
  */
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -64,12 +65,17 @@ export async function POST(req: Request) {
   }
 
   const paid = inv.payments?.paid_amount ?? inv.amount;
-  const paidOn =
-    inv.payments?.transactions?.[0]?.payment_date ?? event.create_time ?? new Date().toISOString();
+  const latestPayment = (inv.payments?.transactions ?? [])
+    .map((t) => t.payment_date)
+    .filter((d): d is string => Boolean(d))
+    .sort()
+    .at(-1);
+  const paidOn = latestPayment ?? event.create_time ?? new Date().toISOString();
   const usd = paid ? Number(paid.value) : null;
 
-  const fx = usd !== null ? await usdToZar(paidOn) : null;
-  const zar = usd !== null && fx ? Math.round(usd * fx.rate * 100) / 100 : null;
+  const currency = localCurrency();
+  const fx = usd !== null ? await usdToLocal(paidOn) : null;
+  const local = usd !== null && fx ? Math.round(usd * fx.rate * 100) / 100 : null;
 
   const record = {
     event_id: event.id,
@@ -77,15 +83,17 @@ export async function POST(req: Request) {
     invoice_number: inv.detail?.invoice_number ?? null,
     status: inv.status ?? null,
     paid_usd: usd,
-    paid_on: paidOn,
-    usd_zar_rate: fx?.rate ?? null,
-    rate_date: fx?.date ?? null,
-    paid_zar: zar,
+    paid_on: paidOn.slice(0, 10),
+    currency,
+    fx_rate: fx?.rate ?? null,
+    fx_date: fx?.date ?? null,
+    fx_source: fx?.source ?? null,
+    paid_local: local,
   };
   console.log(
     `[payment] invoice #${record.invoice_number ?? "?"} paid ` +
       (usd !== null ? `$${usd.toFixed(2)}` : "(amount unknown)") +
-      (zar !== null ? ` = ${formatZar(zar)} at ${fx?.rate} (${fx?.date})` : " (no FX rate)"),
+      (local !== null ? ` = ${formatLocal(local)} at ${fx?.rate} USD/${currency} (${fx?.date})` : " (no FX rate)"),
     JSON.stringify(record),
   );
 

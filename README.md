@@ -1,15 +1,13 @@
 # Crossbill
 
-**Describe the job. Approve. Get paid.**
+**Describe the job. Approve. Get paid. Your tax books keep themselves.**
 
-Crossbill is an AI agent for freelancers paid by overseas clients. Describe the job in plain words and it drafts a PayPal invoice, sends it once you approve, chases late payers, and records every payment in rand.
+Crossbill is an AI agent for freelancers paid by overseas clients. Describe the job in plain words and it drafts a PayPal invoice, sends it once you approve, chases late payers, and keeps tax-ready books in your own currency, converting every payment at the exchange rate on the day you were paid.
 
-- **Live demo:** https://crossbill-agent.vercel.app
+- **Live demo:** https://crossbill-agent.vercel.app (no sign-up, no access code, no cold start)
 - **Built for:** the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/), running on the PayPal **sandbox** (no real money moves)
 
-## Try it in 2 minutes (for judges)
-
-No sign-up needed.
+## Try it in 3 minutes (for judges)
 
 1. Open **https://crossbill-agent.vercel.app** and type (or tap the matching example):
    > Invoice Sarah Lee (sb-0dyw4353715522@personal.example.com) for 2 hours of tutoring at $25 an hour
@@ -22,12 +20,14 @@ No sign-up needed.
    | Password | `bDch:9p*` |
 
    Pay the invoice with the buyer's PayPal balance.
-4. Back in Crossbill, ask **"Who owes me and who has paid?"** The invoice now shows as PAID.
-5. Try a reminder: **"Draft a polite reminder for my oldest unpaid invoice"**, then **Approve & send**.
+4. Back in Crossbill, ask **"Who owes me and who has paid?"** The invoice now shows as PAID, with its rand value at that day's rate.
+5. Open **Dashboard**: every invoice in an AG Grid table, and AG Studio reports you can edit.
+6. Open **Statement**: this tax year's income, payment by payment, in USD and rand. Tap **Download CSV** or **Print or save as PDF**.
+7. Try a reminder: **"Draft a polite reminder for my oldest unpaid invoice"**, then **Approve & send**.
 
 ## The problem
 
-PayPal can't price in South African rand, so freelancers here (and in many other countries) bill overseas clients in US dollars. That means writing invoices by hand, chasing late payers by email, and keeping a separate spreadsheet of what each payment was worth in local currency for the tax return.
+PayPal can't invoice in South African rand, so freelancers here (and in many other countries) bill overseas clients in US dollars. That means writing invoices by hand, chasing late payers by email, and at tax time converting every single payment into rand at the right exchange rate, usually in a spreadsheet kept on the side.
 
 ## What it does
 
@@ -35,9 +35,19 @@ PayPal can't price in South African rand, so freelancers here (and in many other
 | --- | --- |
 | Plain words to invoice | The AI turns "8 maths lessons at $20 each" into a structured PayPal invoice with the right units |
 | You approve every send | The AI only proposes; nothing reaches PayPal until you tap **Approve & send** |
-| Who owes you | Ask in plain words; the agent reads your invoices from PayPal |
+| Who owes you | Ask in plain words; the agent reads your invoices from PayPal, including overdue days |
 | Chase late payers | The agent drafts a polite, specific reminder; you approve it and PayPal sends it |
-| Payments in rand | When a client pays, a verified PayPal webhook records the payment with its rand value at that day's exchange rate |
+| Books in your currency | Every payment (each part-payment too) is converted at the exchange rate for the day it was paid, and a verified PayPal webhook confirms each payment the moment it lands |
+| Tax-year statement | `/statement`: the South African tax year (1 March to end of February), a month or any range; monthly totals; every payment with its rate; CSV download and print view |
+| Ask about earnings | "What did I earn in October?" or "How much did I earn this tax year, in rand?" |
+| Receivables dashboard | An [AG Grid](https://www.ag-grid.com/) table of every invoice plus [AG Studio](https://www.ag-grid.com/studio/) reports over invoices and payments |
+| Any local currency | Rand by default; about 30 currencies from European Central Bank rates (INR, PHP, BRL, MXN...), plus currencies such as KES and NGN from community rates |
+
+## Why the rate on the day you were paid
+
+For South African individuals, foreign income is translated into rand at the spot rate on the date it is received; that is the default rule in [SARS Interpretation Note 63](https://www.sars.gov.za/lapd-intr-in-2012-63-rules-translation-amounts-foreign-currencies) (section 25D of the Income Tax Act). Individuals may instead elect the [average exchange rate](https://www.sars.gov.za/legal-pub-aer-01-average-exchange-rates-specific-provisions-income-tax-act) for the year of assessment. Crossbill records the payment-date rate for every payment, and shows the rate's own date (on weekends and public holidays the European Central Bank publishes no rate, so the last working day's rate is used).
+
+Crossbill keeps records; it is not tax advice.
 
 ## Who it's for
 
@@ -56,23 +66,28 @@ flowchart LR
   K -->|pays in USD| P
   P -->|INVOICING.INVOICE.PAID webhook| W[Webhook route]
   W -->|verify signature, re-read invoice| P
-  W -->|USD to ZAR rate| X[Frankfurter, ECB rates]
+  P --> L[Books: ledger.ts]
+  L -->|rate on each payment date| X[Frankfurter, ECB rates]
+  L --> D[Dashboard: AG Grid and AG Studio]
+  L --> T[Tax statement, CSV]
 ```
 
-1. The agent has three tools: `propose_invoice`, `list_invoices` and `propose_reminder`. It can **read** from PayPal and **propose** actions, but it cannot send anything.
+1. The agent has five tools: `propose_invoice`, `list_invoices`, `earnings`, `income_statement` and `propose_reminder`. It can **read** from PayPal and **propose** actions, but it cannot send anything.
 2. Sending happens in separate routes (`/api/invoices/send`, `/api/invoices/remind`) that run only when you tap Approve. The approval step is enforced in code, not just in the prompt.
-3. When a client pays, PayPal calls `/api/paypal/webhook`. Crossbill asks PayPal to verify the signature, re-reads the invoice from PayPal for the authoritative amount, and converts it to rand at that day's rate.
+3. When a client pays, PayPal calls `/api/paypal/webhook`. Crossbill asks PayPal to verify the signature, re-reads the invoice from PayPal for the authoritative amount, and converts it at that day's rate.
+4. The books (`lib/ledger.ts`) are rebuilt live from PayPal on every request: no database to drift out of sync or pause. Each payment gets the rate for its own date; past rates are cached.
+5. Every money figure the agent quotes comes from a tool result, already formatted; the model never does currency arithmetic itself.
 
 ## PayPal integration
 
 | PayPal API | Used for |
 | --- | --- |
 | `POST /v2/invoicing/generate-next-invoice-number` | Sequential invoice numbers |
-| `POST /v2/invoicing/invoices` | Create the draft invoice (with an idempotent `PayPal-Request-Id`) |
+| `POST /v2/invoicing/invoices` | Create the draft invoice (idempotent `PayPal-Request-Id`, your business name as invoicer) |
 | `POST /v2/invoicing/invoices/{id}/send` | Send it to the client after approval |
-| `GET /v2/invoicing/invoices` and `/{id}` | "Who owes me", invoice status, paid amounts |
+| `GET /v2/invoicing/invoices` and `/{id}` | Status, amounts due, payment transactions and dates |
 | `POST /v2/invoicing/invoices/{id}/remind` | Payment reminders after approval |
-| Webhook `INVOICING.INVOICE.PAID` | Real-time payment records |
+| Webhook `INVOICING.INVOICE.PAID` | Real-time payment confirmation |
 | `POST /v1/notifications/verify-webhook-signature` | Only trust webhooks PayPal confirms |
 
 ## AI tools used and how
@@ -84,6 +99,11 @@ flowchart LR
 | Google Gemini, model `gemini-3.8-flash` | Automatic backup: takes over instantly if Groq fails or hits its free quota |
 
 Both run on free tiers. The model order and names are set by environment variables, so a retired or overloaded model can be swapped without code changes.
+
+## How we used AG Grid and AG Studio
+
+- **AG Grid** (`components/receivables.tsx`): every invoice with status chips, overdue highlighting, due and paid dates, the payment day's rate and the local-currency value; sortable, filterable and themed to match the app in light and dark mode.
+- **AG Studio** (`components/studio-reports.tsx`): two related data sources, `invoices` and `payments` (one row per payment, with `paid_month`, `paid_usd`, the rate and the local value). It opens on a ready-made report, and **Edit report** lets any freelancer add KPIs, charts and pivots in the browser; their report is kept in that browser.
 
 ## Safety
 
@@ -115,25 +135,32 @@ Open http://localhost:3000.
 | `GROQ_API_KEY` | [Groq console](https://console.groq.com/keys) (free) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) (free) |
 | `AI_PROVIDER_ORDER` | Optional, default `groq,gemini` |
+| `LOCAL_CURRENCY` | Optional, default `ZAR`; any ISO code, e.g. `INR`, `PHP`, `KES` |
+| `BUSINESS_NAME` | Optional: the name clients see on your invoices and statement |
 
 ## Project structure
 
 | Path | What it does |
 | --- | --- |
-| `lib/agent.ts` | AI agent: system prompt, tools, provider fallback |
+| `lib/agent.ts` | AI agent: system prompt, five tools, provider fallback |
 | `lib/paypal.ts` | PayPal REST client: invoicing and webhook verification |
-| `lib/fx.ts` | USD to ZAR rates from [Frankfurter](https://www.frankfurter.app/) |
+| `lib/ledger.ts` | Books built live from PayPal: amounts due, every payment, its rate and local value, overdue days |
+| `lib/fx.ts` | USD to local-currency rates on a given day: [Frankfurter](https://www.frankfurter.app/) (ECB), with [exchange-api](https://github.com/fawazahmed0/exchange-api) as fallback |
+| `lib/statement.ts` | Income statement for a period, and its CSV |
+| `lib/money.ts` | Money and date formatting, South African tax years |
 | `app/api/chat` | Chat endpoint |
+| `app/dashboard`, `app/api/ledger` | Receivables dashboard (AG Grid and AG Studio) and its read-only data |
+| `app/statement`, `app/api/statement` | Tax statement page, JSON and CSV |
 | `app/api/invoices/send`, `remind` | Run only on Approve |
 | `app/api/paypal/webhook` | Verified payment webhook |
-| `components/` | Chat and approval cards |
+| `components/` | Chat, approval cards, dashboard, reports, statement |
 
 ## What's next
 
-- Saved payment history in Supabase, with a monthly income statement in USD and ZAR
-- Receivables dashboard
-- Client memory and default rates per freelancer
-- Live mode, more local currencies, accountant export
+- Live mode for real PayPal accounts
+- The optional average-rate method for the tax year
+- Saved clients and default rates
+- Sharing the statement with an accountant
 
 ## License
 
