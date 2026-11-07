@@ -10,14 +10,14 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 ## Try it in 3 minutes (for judges)
 
 1. Open **https://crossbill-agent.vercel.app** and type:
-   > Invoice Sarah Lee (sb-0dyw4353715522@personal.example.com) for 2 hours of tutoring at $25 an hour
+   > Invoice PayPal Hackathon (paypalhackathon@personal.example.com) for 2 hours of tutoring at $25 an hour
 2. Check the invoice card, then tap **Approve & send**. Crossbill creates the invoice in PayPal and sends it.
 3. Tap **Open the client's payment page** and log in as the test client:
 
    | Sandbox buyer (client) | |
    | --- | --- |
-   | Email | `sb-0dyw4353715522@personal.example.com` |
-   | Password | `bDch:9p*` |
+   | Email | `paypalhackathon@personal.example.com` |
+   | Password | `T&f$4#&u` |
 
    Pay the invoice with the buyer's PayPal balance.
 4. Back in Crossbill, ask **"Who owes me and who has paid?"** The invoice now shows as PAID, with its rand value at that day's rate.
@@ -108,6 +108,7 @@ Both run on free tiers. The model order and names are set by environment variabl
 ## Safety
 
 - Human approval before any invoice or reminder is sent
+- On the sandbox, invoices and reminders only go to the listed test client accounts (`SANDBOX_TEST_EMAILS`). PayPal has no API to check whether an email belongs to a PayPal account, so anything else is refused before it reaches PayPal, both when the agent drafts it and when you approve
 - Webhooks are accepted only after PayPal verifies their signature
 - One request id per invoice card, so a double tap can never create two invoices
 - Per-IP rate limits on every route
@@ -132,6 +133,7 @@ Open http://localhost:3000.
 | --- | --- |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | [PayPal Developer](https://developer.paypal.com/dashboard/applications/sandbox) > Apps & Credentials > Sandbox |
 | `PAYPAL_WEBHOOK_ID` | Shown after you add a webhook for **Invoicing invoice paid** on the same sandbox app |
+| `SANDBOX_TEST_EMAILS` | Your sandbox **personal** (client) account emails, comma-separated. Only these can receive invoices on the sandbox |
 | `GROQ_API_KEY` | [Groq console](https://console.groq.com/keys) (free) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) (free) |
 | `AI_PROVIDER_ORDER` | Optional, default `groq,gemini` |
@@ -144,6 +146,7 @@ Open http://localhost:3000.
 | --- | --- |
 | `lib/agent.ts` | AI agent: system prompt, five tools, provider fallback |
 | `lib/paypal.ts` | PayPal REST client: invoicing and webhook verification |
+| `lib/recipients.ts` | Sandbox allowlist: which test client emails may receive invoices |
 | `lib/ledger.ts` | Books built live from PayPal: amounts due, every payment, its rate and local value, overdue days |
 | `lib/fx.ts` | USD to local-currency rates on a given day: [Frankfurter](https://www.frankfurter.app/) (ECB), with [exchange-api](https://github.com/fawazahmed0/exchange-api) as fallback |
 | `lib/statement.ts` | Income statement for a period, and its CSV |

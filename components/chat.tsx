@@ -11,14 +11,34 @@ type Message = {
   provider?: string;
 };
 
-// One example per kind of freelancer, to show Crossbill works for any field.
 const PLACEHOLDER = "Describe the job to invoice, or ask who owes you…";
 
-const EXAMPLES = [
-  { who: "Tutor", text: "Invoice Emma Brown (emma.brown@example.com) for 8 online maths lessons at $20 each in October" },
-  { who: "Developer", text: "Invoice Sarah Lee (sarah@example.com) for 3 days of Next.js work at $250 a day plus $120 for hosting setup" },
-  { who: "Translator", text: "Bill Acme Ltd (accounts@acme.example.com) for translating 4,500 words from English to isiZulu at $0.08 a word" },
+// One example per kind of freelancer, to show Crossbill works for any field.
+// Each is addressed to its own PayPal sandbox test client, so every example can
+// be sent and paid end to end. If that client is not in SANDBOX_TEST_EMAILS,
+// another listed test client is used instead.
+const EXAMPLES: { who: string; email: string; text: (email: string) => string }[] = [
+  {
+    who: "Tutor",
+    email: "angelina@personal.example.com",
+    text: (e) => `Invoice Angelina (${e}) for 8 online maths lessons at $20 each in October`,
+  },
+  {
+    who: "Developer",
+    email: "jacksmith@personal.example.com",
+    text: (e) => `Invoice Jack Smith (${e}) for 3 days of Next.js work at $250 a day plus $120 for hosting setup`,
+  },
+  {
+    who: "Translator",
+    email: "ngwenyaholdings@personal.example.com",
+    text: (e) => `Bill Ngwenya Holdings (${e}) for translating 4,500 words from English to isiZulu at $0.08 a word`,
+  },
 ];
+
+function exampleEmail(own: string, index: number, testEmails: string[]): string {
+  if (testEmails.length === 0 || testEmails.includes(own)) return own;
+  return testEmails[index % testEmails.length];
+}
 
 /** Safety net in case a model still sends markdown: show clean plain text. */
 function plainText(text: string): string {
@@ -30,7 +50,11 @@ function plainText(text: string): string {
     .replace(/^\s*[*•]\s+/gm, "- ");
 }
 
-export default function Chat() {
+export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
+  const examples = EXAMPLES.map((ex, i) => ({
+    who: ex.who,
+    text: ex.text(exampleEmail(ex.email, i, testEmails)),
+  }));
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -98,7 +122,7 @@ export default function Chat() {
             <div className="ff-panel-strong rounded-2xl p-4 sm:p-5">
               <p className="ff-eyebrow">Works for any freelancer · try one below</p>
               <div className="ff-options mt-3 flex flex-col gap-2">
-                {EXAMPLES.map((ex) => (
+                {examples.map((ex) => (
                   <button
                     key={ex.text}
                     onClick={() => send(ex.text)}

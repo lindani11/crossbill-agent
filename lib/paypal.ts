@@ -7,7 +7,7 @@ import type { InvoiceProposal, PaymentTerm, ReminderProposal } from "./schemas";
  */
 
 const API_BASE = process.env.PAYPAL_API_BASE ?? "https://api-m.sandbox.paypal.com";
-const IS_SANDBOX = API_BASE.includes("sandbox");
+export const IS_SANDBOX = API_BASE.includes("sandbox");
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 

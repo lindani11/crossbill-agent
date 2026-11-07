@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getLedger, paymentsIn, totals, type LedgerPayment } from "./ledger";
 import { buildStatement } from "./statement";
 import { localCurrency } from "./fx";
+import { checkRecipient } from "./recipients";
 import { currencyName, currentSaTaxYearEnd, formatMoney, isIsoDate, saTaxYear, type Period } from "./money";
 import {
   PAYMENT_TERMS,
@@ -51,6 +52,7 @@ Rules:
   - QUANTITY for anything counted: lessons, sessions, words, pages, days, photos ("8 lessons at $20" -> quantity 8, unit_amount 20; "4,500 words at $0.08" -> quantity 4500, unit_amount 0.08).
 - Name line items after the work, in the freelancer's own field (e.g. "Maths lesson", "Translation, English to isiZulu", "Logo design", "Admin support").
 - If the client's email address is missing, ask for it instead of guessing. Never invent an email address.
+- If propose_invoice returns an error about the email address, pass that message on in one or two plain sentences and ask for another email. Never swap in a different address yourself.
 - Keep line item names short; put detail in the description.
 - Reminders must be polite, short and specific: mention the invoice number, amount and due date.
 - After proposing, reply in one or two sentences telling the freelancer to review and approve. Keep replies short and plain.
@@ -124,6 +126,9 @@ function buildTools(proposals: Proposal[]) {
         if (!parsed.success) {
           return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
         }
+        // No card for an address that could never receive it (sandbox test clients only).
+        const recipient = checkRecipient(parsed.data.client_email);
+        if (!recipient.ok) return { ok: false, error: recipient.error };
         const total = invoiceTotal(parsed.data.items);
         proposals.push({ kind: "invoice", total, data: parsed.data });
         return { ok: true, status: "awaiting_approval", total_usd: total };

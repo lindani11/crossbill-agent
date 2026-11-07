@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PayPalError, sendReminder } from "@/lib/paypal";
+import { PayPalError, getInvoice, sendReminder } from "@/lib/paypal";
 import { reminderProposalSchema } from "@/lib/schemas";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { checkRecipient } from "@/lib/recipients";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,13 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Sandbox: only remind the listed test client accounts.
+    const invoice = await getInvoice(parsed.data.invoice_id);
+    const recipient = checkRecipient(invoice.primary_recipients?.[0]?.billing_info?.email_address);
+    if (!recipient.ok) {
+      return NextResponse.json({ error: recipient.error }, { status: 403 });
+    }
+
     await sendReminder(parsed.data);
     return NextResponse.json({ ok: true });
   } catch (err) {

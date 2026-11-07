@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAndSendInvoice, PayPalError } from "@/lib/paypal";
 import { invoiceProposalSchema } from "@/lib/schemas";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { checkRecipient } from "@/lib/recipients";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,12 @@ export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid invoice", issues: parsed.error.issues }, { status: 400 });
+  }
+
+  // Sandbox: only the listed test client accounts can receive invoices.
+  const recipient = checkRecipient(parsed.data.proposal.client_email);
+  if (!recipient.ok) {
+    return NextResponse.json({ error: recipient.error }, { status: 403 });
   }
 
   try {
