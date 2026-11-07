@@ -6,9 +6,15 @@ export const metadata: Metadata = { title: "Dashboard · Crossbill" };
 
 export default function DashboardPage() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-8">
+    <>
       <SiteHeader active="dashboard" />
-      <Receivables />
-    </main>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-6 pb-10 sm:px-6">
+        <div className="mb-5">
+          <p className="ff-eyebrow">Receivables</p>
+          <h1 className="on-canvas mt-1 text-3xl font-black tracking-tight">Who owes you, and what you&apos;ve earned</h1>
+        </div>
+        <Receivables />
+      </main>
+    </>
   );
 }

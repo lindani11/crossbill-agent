@@ -59,17 +59,17 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
   const done = state.status === "sent" || state.status === "discarded";
 
   return (
-    <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 shadow-sm">
+    <div className="mt-3 rounded-2xl border-2 border-[var(--accent-strong)] bg-[var(--surface-strong)] p-4 sm:p-5">
       {proposal.kind === "invoice" ? (
         <>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Invoice draft</p>
-              <p className="mt-1 font-semibold">{proposal.data.client_name}</p>
+              <p className="ff-eyebrow">Invoice draft</p>
+              <p className="mt-1 font-extrabold">{proposal.data.client_name}</p>
               <p className="text-sm text-[var(--muted)]">{proposal.data.client_email}</p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-semibold tabular-nums">{formatUsd(proposal.total)}</p>
+              <p className="text-2xl font-black tabular-nums">{formatUsd(proposal.total)}</p>
               <p className="text-xs text-[var(--muted)]">
                 {TERM_LABEL[proposal.data.payment_term ?? ""] ?? "Default terms"}
               </p>
@@ -78,7 +78,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
           <table className="mt-3 w-full text-sm">
             <tbody>
               {proposal.data.items.map((it, i) => (
-                <tr key={i} className="border-t border-[var(--line)]">
+                <tr key={i} className="border-t border-[var(--line-soft)]">
                   <td className="py-2 pr-2">
                     <span className="font-medium">{it.name}</span>
                     {it.description ? <span className="block text-xs text-[var(--muted)]">{it.description}</span> : null}
@@ -95,41 +95,34 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
         </>
       ) : (
         <>
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+          <p className="ff-eyebrow">
             Reminder draft{proposal.data.invoice_number ? ` · invoice ${proposal.data.invoice_number}` : ""}
           </p>
-          <p className="mt-1 font-semibold">{proposal.data.subject}</p>
+          <p className="mt-1 font-extrabold">{proposal.data.subject}</p>
           <p className="mt-2 whitespace-pre-wrap text-sm">{proposal.data.note}</p>
         </>
       )}
 
       {state.status === "sent" ? (
-        <p className="mt-3 text-sm font-medium text-[var(--accent)]">
+        <p role="status" className="mt-3 rounded-xl border border-[var(--success)] bg-[rgb(236_253_245)] px-3 py-2 text-sm font-semibold text-[var(--success)]">
           {state.detail}{" "}
           {state.link ? (
-            <a href={state.link} target="_blank" rel="noreferrer" className="underline">
+            <a href={state.link} target="_blank" rel="noreferrer" className="font-extrabold text-[var(--accent-strong)] underline underline-offset-2">
               Open the client&apos;s payment page
             </a>
           ) : null}
         </p>
       ) : null}
-      {state.status === "error" ? <p className="mt-3 text-sm text-[var(--danger)]">{state.message}</p> : null}
+      {state.status === "error" ? <p role="alert" className="mt-3 text-sm font-semibold text-[var(--danger)]">{state.message}</p> : null}
       {state.status === "discarded" ? <p className="mt-3 text-sm text-[var(--muted)]">Discarded. Nothing was sent.</p> : null}
 
       {!done ? (
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={approve}
-            disabled={busy}
-            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-60"
-          >
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button onClick={approve} disabled={busy} aria-busy={busy} className="ff-btn ff-btn-primary">
+            {busy ? <span aria-hidden="true" className="ff-spinner" /> : null}
             {busy ? "Sending…" : state.status === "error" ? "Try again" : "Approve & send"}
           </button>
-          <button
-            onClick={() => setState({ status: "discarded" })}
-            disabled={busy}
-            className="rounded-lg border border-[var(--line)] px-4 py-2 text-sm disabled:opacity-60"
-          >
+          <button onClick={() => setState({ status: "discarded" })} disabled={busy} className="ff-btn ff-btn-secondary">
             Discard
           </button>
         </div>

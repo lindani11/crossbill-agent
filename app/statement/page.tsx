@@ -13,9 +13,11 @@ export default async function StatementPage({
   const { from, to } = await searchParams;
   const valid = isIsoDate(from) && isIsoDate(to) && from <= to;
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 pb-8">
+    <>
       <SiteHeader active="statement" />
-      <StatementView initialFrom={valid ? from : undefined} initialTo={valid ? to : undefined} />
-    </main>
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-6 pb-10 sm:px-6">
+        <StatementView initialFrom={valid ? from : undefined} initialTo={valid ? to : undefined} />
+      </main>
+    </>
   );
 }

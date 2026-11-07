@@ -127,11 +127,11 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
   }, [storageKey, currency]);
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="mt-4 flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">Reports</h2>
-          <p className="text-xs text-[var(--muted)]">
+          <h2 className="on-canvas text-lg font-black">Reports</h2>
+          <p className="on-canvas-muted text-xs">
             Built with AG Studio. Tap Edit report to add KPIs and charts, such as {localWord} received per month.
           </p>
         </div>
@@ -145,19 +145,19 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
               }
               window.location.reload();
             }}
-            className="rounded-lg px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+            className="ff-btn ff-btn-secondary ff-btn-sm"
           >
             Reset
           </button>
           <button
             onClick={() => setMode((m) => (m === "view" ? "edit" : "view"))}
-            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm"
+            className="ff-btn ff-btn-primary ff-btn-sm"
           >
             {mode === "view" ? "Edit report" : "Done editing"}
           </button>
         </div>
       </div>
-      <div className="h-[560px] w-full overflow-hidden rounded-xl border border-[var(--line)]">
+      <div className="h-[560px] w-full overflow-hidden rounded-2xl border-2 border-[var(--accent-strong)] bg-white">
         <AgStudio
           data={data}
           mode={mode}

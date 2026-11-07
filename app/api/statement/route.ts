@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildStatement, defaultPeriod, statementCsv } from "@/lib/statement";
+import { statementPdf } from "@/lib/statement-pdf";
 import { formatDate, isIsoDate, saTaxYear, type Period } from "@/lib/money";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 
@@ -18,7 +19,7 @@ function periodFrom(url: URL): Period | null {
 
 /**
  * Read-only income statement. JSON for the Statement page and the agent;
- * `?format=csv` downloads it as a spreadsheet file.
+ * `?format=csv` downloads it as a spreadsheet file, `?format=pdf` as a PDF.
  */
 export async function GET(req: Request) {
   if (!rateLimit(`statement:${clientIp(req)}`, 30)) {
@@ -32,6 +33,17 @@ export async function GET(req: Request) {
 
   try {
     const st = await buildStatement(period);
+    if (url.searchParams.get("format") === "pdf") {
+      const pdf = await statementPdf(st);
+      const body = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength) as ArrayBuffer;
+      return new Response(body, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="crossbill-income-${period.from}-to-${period.to}.pdf"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
     if (url.searchParams.get("format") === "csv") {
       const name = `crossbill-income-${period.from}-to-${period.to}.csv`;
       return new Response(statementCsv(st), {

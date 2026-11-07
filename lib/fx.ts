@@ -107,7 +107,3 @@ export function usdToLocal(onDate?: string): Promise<FxRate | null> {
 export function formatLocal(value: number): string {
   return formatMoney(value, localCurrency());
 }
-
-// Kept for older imports.
-export const usdToZar = (onDate?: string) => usdTo("ZAR", onDate);
-export const formatZar = (value: number) => formatMoney(value, "ZAR");

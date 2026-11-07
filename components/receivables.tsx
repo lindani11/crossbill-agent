@@ -19,7 +19,15 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // AG Studio runs in the browser only.
 const StudioReports = dynamic(() => import("./studio-reports"), {
   ssr: false,
-  loading: () => <p className="text-sm text-[var(--muted)]">Loading reports…</p>,
+  loading: () => (
+    <div aria-busy="true" aria-label="Loading reports" className="ff-panel flex h-[560px] flex-col gap-4 rounded-2xl p-5">
+      <div className="ff-skeleton h-4 w-40" />
+      <div className="grid flex-1 gap-4 sm:grid-cols-2">
+        <div className="ff-skeleton-soft h-full" />
+        <div className="ff-skeleton-soft h-full" />
+      </div>
+    </div>
+  ),
 });
 
 type Row = {
@@ -62,22 +70,27 @@ const money = (currency: string) => (p: ValueFormatterParams) =>
   p.value === null || p.value === undefined ? "" : formatMoney(p.value as number, currency);
 const date = (p: ValueFormatterParams) => formatDate(p.value as string | null);
 
-// Matches the app's colours in light and dark mode.
+// White panel with deep-blue edges, matching the rest of the app.
 const theme = themeQuartz.withParams({
-  backgroundColor: "var(--surface)",
+  backgroundColor: "rgb(247 240 228)",
   foregroundColor: "var(--ink)",
   headerBackgroundColor: "var(--bg)",
-  borderColor: "var(--line)",
-  accentColor: "var(--accent)",
+  headerTextColor: "var(--ink)",
+  headerFontWeight: 800,
+  borderColor: "var(--line-soft)",
+  wrapperBorder: { color: "var(--accent-strong)", width: 2 },
+  accentColor: "var(--accent-strong)",
+  rowHoverColor: "rgb(125 211 252 / 0.18)",
+  oddRowBackgroundColor: "rgb(240 232 218)",
   fontFamily: "inherit",
   fontSize: 13,
-  wrapperBorderRadius: 12,
+  wrapperBorderRadius: 16,
 });
 
 const STATUS_STYLE: Record<string, string> = {
   PAID: "bg-[var(--accent)] text-[var(--accent-ink)]",
   MARKED_AS_PAID: "bg-[var(--accent)] text-[var(--accent-ink)]",
-  PARTIALLY_PAID: "border border-[var(--accent)] text-[var(--accent)]",
+  PARTIALLY_PAID: "border border-[var(--accent-strong)] text-[var(--accent-strong)]",
   SENT: "border border-[var(--line)] text-[var(--ink)]",
   UNPAID: "border border-[var(--line)] text-[var(--ink)]",
   CANCELLED: "text-[var(--muted)] line-through",
@@ -90,19 +103,23 @@ function StatusChip(p: ICellRendererParams<Row>) {
   const label = row.days_overdue ? "OVERDUE" : row.status.replace(/_/g, " ");
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${overdue ?? STATUS_STYLE[row.status] ?? "text-[var(--muted)]"}`}
+      className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${overdue ?? STATUS_STYLE[row.status] ?? "text-[var(--muted)]"}`}
     >
       {label}
     </span>
   );
 }
 
-function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "accent" | "danger" }) {
-  const color = tone === "accent" ? "text-[var(--accent)]" : tone === "danger" ? "text-[var(--danger)]" : "";
+function Tile({ label, value, sub, tone }: { label: string; value: string | null; sub?: string; tone?: "accent" | "danger" }) {
+  const color = tone === "accent" ? "text-[var(--accent-strong)]" : tone === "danger" ? "text-[var(--danger)]" : "";
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${color}`}>{value}</p>
+    <div className={`${tone === "accent" ? "ff-panel-strong" : "ff-panel"} rounded-2xl p-4`}>
+      <p className="ff-eyebrow !tracking-[0.12em]">{label}</p>
+      {value === null ? (
+        <div className="ff-skeleton mt-2 h-7 w-28" aria-hidden="true" />
+      ) : (
+        <p className={`mt-1 text-2xl font-black tabular-nums ${color}`}>{value}</p>
+      )}
       {sub ? <p className="mt-0.5 text-xs text-[var(--muted)]">{sub}</p> : null}
     </div>
   );
@@ -190,46 +207,44 @@ export default function Receivables() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile label="Outstanding" value={sum ? formatMoney(sum.outstanding_usd, "USD") : "—"} sub="Sent, not yet paid" />
+        <Tile label="Outstanding" value={sum ? formatMoney(sum.outstanding_usd, "USD") : error ? "—" : null} sub="Sent, not yet paid" />
         <Tile
           label="Overdue"
-          value={sum ? formatMoney(sum.overdue_usd, "USD") : "—"}
+          value={sum ? formatMoney(sum.overdue_usd, "USD") : error ? "—" : null}
           sub={sum ? `${sum.overdue_count} invoice${sum.overdue_count === 1 ? "" : "s"}` : undefined}
           tone={sum && sum.overdue_count > 0 ? "danger" : undefined}
         />
         <Tile
           label="Received"
-          value={sum ? formatMoney(sum.paid_usd, "USD") : "—"}
+          value={sum ? formatMoney(sum.paid_usd, "USD") : error ? "—" : null}
           sub={sum ? `${sum.paid_count} payment${sum.paid_count === 1 ? "" : "s"}` : undefined}
         />
         <Tile
           label={`Received in ${localWord}`}
-          value={sum ? formatMoney(sum.paid_local, currency) : "—"}
+          value={sum ? formatMoney(sum.paid_local, currency) : error ? "—" : null}
           sub="At each payment day's rate"
           tone="accent"
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Invoices</h2>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/statement"
-            className="rounded-lg px-3 py-1.5 text-sm text-[var(--accent)] hover:underline"
-          >
-            Tax statement →
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="on-canvas text-lg font-black">Invoices</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/statement" className="ff-btn ff-btn-secondary ff-btn-sm">
+            Tax statement ↗
           </Link>
-          <button
-            onClick={load}
-            disabled={loading}
-            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-60"
-          >
+          <button onClick={load} disabled={loading} aria-busy={loading} className="ff-btn ff-btn-primary ff-btn-sm">
+            {loading ? <span aria-hidden="true" className="ff-spinner" /> : null}
             {loading ? "Refreshing…" : "Refresh from PayPal"}
           </button>
         </div>
       </div>
 
-      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="ff-panel rounded-xl px-4 py-3 text-sm font-semibold text-[var(--danger)]">
+          {error}
+        </p>
+      ) : null}
 
       <div className="h-[520px] w-full">
         <AgGridReact<Row>
@@ -253,7 +268,7 @@ export default function Receivables() {
         />
       </div>
 
-      <p className="text-xs text-[var(--muted)]">
+      <p className="on-canvas-muted text-xs">
         Live from PayPal. {currency} values use the exchange rate for each payment date (European Central Bank
         reference rates via Frankfurter).
       </p>

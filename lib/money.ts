@@ -17,13 +17,11 @@ export function formatMoney(value: number, currency: string): string {
       currencyDisplay: "narrowSymbol",
     })
       .format(value)
-      .replace(/ /g, " ");
+      .replace(/\u00a0/g, " ");
   } catch {
     return `${cur} ${DIGITS.format(value)}`;
   }
 }
-
-export const formatUsd = (value: number) => formatMoney(value, "USD");
 
 /** "South African rand" from "ZAR"; falls back to the code. */
 export function currencyName(currency: string): string {

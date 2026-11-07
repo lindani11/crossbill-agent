@@ -75,45 +75,64 @@ export default function Chat() {
     <div className="flex flex-1 flex-col pb-4">
       <div className="flex-1 space-y-4 py-2">
         {messages.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--line)] p-4">
-            <p className="text-sm font-medium">Works for any freelancer. Try one:</p>
-            <div className="mt-3 flex flex-col gap-2">
-              {EXAMPLES.map((ex) => (
-                <button
-                  key={ex.text}
-                  onClick={() => send(ex.text)}
-                  className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-left text-sm hover:border-[var(--accent)]"
-                >
-                  <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wide text-[var(--accent)]">
-                    {ex.who}
-                  </span>
-                  {ex.text}
-                </button>
-              ))}
+          <>
+            <div>
+              <p className="ff-eyebrow">AI invoicing agent</p>
+              <h1 className="on-canvas mt-1 text-3xl font-black tracking-tight">Describe the job. Approve. Get paid.</h1>
+              <p className="on-canvas-muted mt-2 text-sm leading-6">
+                Crossbill drafts a real PayPal invoice, sends it only when you approve, chases late payers and keeps
+                your books in rand.
+              </p>
             </div>
-          </div>
+            <div className="ff-panel-strong rounded-2xl p-4 sm:p-5">
+              <p className="ff-eyebrow">Works for any freelancer · try one</p>
+              <div className="mt-3 flex flex-col gap-2">
+                {EXAMPLES.map((ex) => (
+                  <button
+                    key={ex.text}
+                    onClick={() => send(ex.text)}
+                    className="ff-option rounded-xl px-4 py-3 text-left text-sm text-[var(--ink)]"
+                  >
+                    <span className="mb-0.5 block text-[11px] font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+                      {ex.who}
+                    </span>
+                    {ex.text}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         ) : null}
 
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-ink)]">
+              <p className="max-w-[85%] rounded-2xl rounded-br-sm border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)]">
                 {m.content}
               </p>
             </div>
           ) : (
             <div key={i} className="max-w-full">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
-              {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
-              {m.provider ? (
-                <p className="mt-1 text-[11px] text-[var(--muted)]">via {m.provider}</p>
-              ) : null}
+              <div className="ff-panel rounded-2xl rounded-bl-sm px-4 py-3">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">{m.content}</p>
+                {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
+              </div>
+              {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {m.provider}</p> : null}
             </div>
           ),
         )}
 
-        {loading ? <p className="text-sm text-[var(--muted)]">Thinking…</p> : null}
-        {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+        {loading ? (
+          <p role="status" className="ff-panel inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[var(--muted)]">
+            <span aria-hidden="true" className="ff-spinner" />
+            Thinking…
+          </p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="ff-panel rounded-xl border-[var(--danger)] px-4 py-3 text-sm font-semibold text-[var(--danger)]">
+            {error}
+          </p>
+        ) : null}
         <div ref={endRef} />
       </div>
 
@@ -122,19 +141,20 @@ export default function Chat() {
           e.preventDefault();
           send(input);
         }}
-        className="sticky bottom-0 flex gap-2 bg-[var(--bg)] pt-2"
+        className="sticky bottom-0 -mx-2 flex gap-2 rounded-t-2xl bg-[rgb(35_20_10/0.6)] px-2 pt-3 pb-2"
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Describe the job to invoice, or ask who owes you…"
-          className="flex-1 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm outline-none focus:border-[var(--accent)]"
+          className="ff-input min-w-0 flex-1 text-sm"
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-ink)] disabled:opacity-50"
+          className="ff-btn ff-btn-primary min-h-12"
         >
+          {loading ? <span aria-hidden="true" className="ff-spinner" /> : null}
           Send
         </button>
       </form>

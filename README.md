@@ -22,7 +22,7 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
    Pay the invoice with the buyer's PayPal balance.
 4. Back in Crossbill, ask **"Who owes me and who has paid?"** The invoice now shows as PAID, with its rand value at that day's rate.
 5. Open **Dashboard**: every invoice in an AG Grid table, and AG Studio reports you can edit.
-6. Open **Statement**: this tax year's income, payment by payment, in USD and rand. Tap **Download CSV** or **Print or save as PDF**.
+6. Open **Statement**: this tax year's income, payment by payment, in USD and rand. Tap **Download PDF** or **Download CSV**.
 7. Try a reminder: **"Draft a polite reminder for my oldest unpaid invoice"**, then **Approve & send**.
 
 ## The problem
@@ -38,7 +38,7 @@ PayPal can't invoice in South African rand, so freelancers here (and in many oth
 | Who owes you | Ask in plain words; the agent reads your invoices from PayPal, including overdue days |
 | Chase late payers | The agent drafts a polite, specific reminder; you approve it and PayPal sends it |
 | Books in your currency | Every payment (each part-payment too) is converted at the exchange rate for the day it was paid, and a verified PayPal webhook confirms each payment the moment it lands |
-| Tax-year statement | `/statement`: the South African tax year (1 March to end of February), a month or any range; monthly totals; every payment with its rate; CSV download and print view |
+| Tax-year statement | `/statement`: the South African tax year (1 March to end of February), a month or any range; monthly totals; every payment with its rate; PDF and CSV downloads |
 | Ask about earnings | "What did I earn in October?" or "How much did I earn this tax year, in rand?" |
 | Receivables dashboard | An [AG Grid](https://www.ag-grid.com/) table of every invoice plus [AG Studio](https://www.ag-grid.com/studio/) reports over invoices and payments |
 | Any local currency | Rand by default; about 30 currencies from European Central Bank rates (INR, PHP, BRL, MXN...), plus currencies such as KES and NGN from community rates |
@@ -69,7 +69,7 @@ flowchart LR
   P --> L[Books: ledger.ts]
   L -->|rate on each payment date| X[Frankfurter, ECB rates]
   L --> D[Dashboard: AG Grid and AG Studio]
-  L --> T[Tax statement, CSV]
+  L --> T[Tax statement: PDF and CSV]
 ```
 
 1. The agent has five tools: `propose_invoice`, `list_invoices`, `earnings`, `income_statement` and `propose_reminder`. It can **read** from PayPal and **propose** actions, but it cannot send anything.
@@ -102,7 +102,7 @@ Both run on free tiers. The model order and names are set by environment variabl
 
 ## How we used AG Grid and AG Studio
 
-- **AG Grid** (`components/receivables.tsx`): every invoice with status chips, overdue highlighting, due and paid dates, the payment day's rate and the local-currency value; sortable, filterable and themed to match the app in light and dark mode.
+- **AG Grid** (`components/receivables.tsx`): every invoice with status chips, overdue highlighting, due and paid dates, the payment day's rate and the local-currency value; sortable, filterable and themed to match the app.
 - **AG Studio** (`components/studio-reports.tsx`): two related data sources, `invoices` and `payments` (one row per payment, with `paid_month`, `paid_usd`, the rate and the local value). It opens on a ready-made report, and **Edit report** lets any freelancer add KPIs, charts and pivots in the browser; their report is kept in that browser.
 
 ## Safety
@@ -147,13 +147,15 @@ Open http://localhost:3000.
 | `lib/ledger.ts` | Books built live from PayPal: amounts due, every payment, its rate and local value, overdue days |
 | `lib/fx.ts` | USD to local-currency rates on a given day: [Frankfurter](https://www.frankfurter.app/) (ECB), with [exchange-api](https://github.com/fawazahmed0/exchange-api) as fallback |
 | `lib/statement.ts` | Income statement for a period, and its CSV |
+| `lib/statement-pdf.ts` | The statement as an A4 PDF, built on the server |
 | `lib/money.ts` | Money and date formatting, South African tax years |
 | `app/api/chat` | Chat endpoint |
 | `app/dashboard`, `app/api/ledger` | Receivables dashboard (AG Grid and AG Studio) and its read-only data |
-| `app/statement`, `app/api/statement` | Tax statement page, JSON and CSV |
+| `app/statement`, `app/api/statement` | Tax statement page, plus JSON, CSV and PDF |
 | `app/api/invoices/send`, `remind` | Run only on Approve |
 | `app/api/paypal/webhook` | Verified payment webhook |
-| `components/` | Chat, approval cards, dashboard, reports, statement |
+| `components/` | Chat, approval cards, dashboard, reports, statement, logo |
+| `app/icon.svg`, `app/apple-icon.png`, `public/icons/` | Favicon and app icons |
 
 ## What's next
 

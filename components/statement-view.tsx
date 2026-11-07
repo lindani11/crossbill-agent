@@ -65,15 +65,15 @@ function presets(currency: string): Preset[] {
 
 function Tile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${accent ? "text-[var(--accent)]" : ""}`}>{value}</p>
+    <div className={`${accent ? "ff-panel-strong" : "ff-panel"} rounded-2xl p-4`}>
+      <p className="ff-eyebrow !tracking-[0.12em]">{label}</p>
+      <p className={`mt-1 text-2xl font-black tabular-nums ${accent ? "text-[var(--accent-strong)]" : ""}`}>{value}</p>
       {sub ? <p className="mt-0.5 text-xs text-[var(--muted)]">{sub}</p> : null}
     </div>
   );
 }
 
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--muted)]";
+const th = "bg-[var(--bg)] px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.1em] text-[var(--ink)]";
 const thNum = `${th} text-right`;
 const td = "px-3 py-2 align-top";
 const tdNum = `${td} text-right tabular-nums`;
@@ -123,44 +123,45 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
     <div className="flex flex-1 flex-col gap-5">
       <section className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Income statement</h2>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">
+          <p className="ff-eyebrow no-print">Tax-ready books</p>
+          <h1 className="on-canvas mt-1 text-3xl font-black tracking-tight">Income statement</h1>
+          <p className="on-canvas mt-1 text-sm font-semibold">
             {st?.business ?? "Freelance income"}
             {st ? ` · ${st.period.label}` : ""}
           </p>
-          <p className="mt-0.5 text-sm text-[var(--muted)]">
+          <p className="on-canvas-muted mt-0.5 text-sm">
             Payments received through PayPal, in US dollars and {currencyName(cur)} at each payment day&apos;s rate.
           </p>
         </div>
         <div className="no-print flex flex-wrap gap-2">
           <a
+            href={st ? `/api/statement?from=${st.period.from}&to=${st.period.to}&format=pdf` : "#"}
+            aria-disabled={!st}
+            className="ff-btn ff-btn-primary"
+          >
+            Download PDF
+          </a>
+          <a
             href={st ? `/api/statement?from=${st.period.from}&to=${st.period.to}&format=csv` : "#"}
             aria-disabled={!st}
-            className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--accent-ink)]"
+            className="ff-btn ff-btn-secondary"
           >
             Download CSV
           </a>
-          <button
-            onClick={() => window.print()}
-            disabled={!st}
-            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-60"
-          >
-            Print or save as PDF
+          <button onClick={() => window.print()} disabled={!st} className="ff-btn ff-btn-ghost">
+            Print
           </button>
         </div>
       </section>
 
-      <section className="no-print flex flex-wrap items-end gap-2">
-        <div className="flex flex-wrap gap-1 rounded-full border border-[var(--line)] p-1">
+      <section className="ff-panel no-print flex flex-wrap items-end gap-3 rounded-2xl p-3">
+        <div className="flex flex-wrap gap-1">
           {options.map((p) => (
             <button
               key={p.id}
               onClick={() => setRange({ from: p.period.from, to: p.period.to })}
-              className={`rounded-full px-3 py-1 text-sm ${
-                activePreset === p.id
-                  ? "bg-[var(--accent)] font-semibold text-[var(--accent-ink)]"
-                  : "text-[var(--muted)] hover:text-[var(--ink)]"
-              }`}
+              aria-pressed={activePreset === p.id}
+              className="ff-tab"
             >
               {p.label}
             </button>
@@ -173,36 +174,64 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
             if (draft.from && draft.to && draft.from <= draft.to) setRange({ ...draft });
           }}
         >
-          <label className="flex flex-col text-xs text-[var(--muted)]">
+          <label className="flex flex-col gap-1 text-xs font-extrabold text-[var(--ink)]">
             From
             <input
               type="date"
               value={draft.from}
               onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))}
-              className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--ink)]"
+              className="ff-input !min-h-10 !py-1.5 text-sm font-normal"
             />
           </label>
-          <label className="flex flex-col text-xs text-[var(--muted)]">
+          <label className="flex flex-col gap-1 text-xs font-extrabold text-[var(--ink)]">
             To
             <input
               type="date"
               value={draft.to}
               onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))}
-              className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--ink)]"
+              className="ff-input !min-h-10 !py-1.5 text-sm font-normal"
             />
           </label>
           <button
             type="submit"
             disabled={!draft.from || !draft.to || draft.from > draft.to}
-            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm disabled:opacity-60"
+            className="ff-btn ff-btn-secondary !min-h-10"
           >
             Show
           </button>
         </form>
-        {loading ? <span className="text-sm text-[var(--muted)]">Loading from PayPal…</span> : null}
+        {loading ? (
+          <span role="status" className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+            <span aria-hidden="true" className="ff-spinner" />
+            Loading from PayPal…
+          </span>
+        ) : null}
       </section>
 
-      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="ff-panel rounded-xl px-4 py-3 text-sm font-semibold text-[var(--danger)]">
+          {error}
+        </p>
+      ) : null}
+
+      {!st && loading ? (
+        <div aria-busy="true" aria-label="Loading statement" className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[0, 1, 2, 3].map((n) => (
+              <div key={n} className="ff-panel rounded-2xl p-4">
+                <div className="ff-skeleton h-3 w-20" />
+                <div className="ff-skeleton mt-3 h-7 w-28" />
+              </div>
+            ))}
+          </div>
+          <div className="ff-panel flex flex-col gap-3 rounded-2xl p-5">
+            <div className="ff-skeleton h-4 w-32" />
+            <div className="ff-skeleton-soft h-10" />
+            <div className="ff-skeleton-soft h-10" />
+            <div className="ff-skeleton-soft h-10" />
+          </div>
+        </div>
+      ) : null}
 
       {st ? (
         <>
@@ -225,16 +254,16 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
           ) : null}
 
           {st.payments.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-[var(--line)] p-6 text-sm text-[var(--muted)]">
+            <p className="ff-panel rounded-2xl border-dashed p-6 text-center text-sm font-semibold text-[var(--muted)]">
               No payments received in this period yet. Pay an invoice as the sandbox client, or pick another period.
             </p>
           ) : (
             <>
               <section className="flex flex-col gap-2">
-                <h3 className="text-sm font-semibold">By month</h3>
-                <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+                <h3 className="on-canvas text-lg font-black">By month</h3>
+                <div className="ff-panel-strong overflow-x-auto rounded-2xl">
                   <table className="w-full min-w-[420px] border-collapse text-sm">
-                    <thead className="border-b border-[var(--line)]">
+                    <thead className="border-b-2 border-[var(--line)]">
                       <tr>
                         <th className={th}>Month</th>
                         <th className={thNum}>Payments</th>
@@ -244,7 +273,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                     </thead>
                     <tbody>
                       {st.months.map((m) => (
-                        <tr key={m.month} className="border-b border-[var(--line)] last:border-0">
+                        <tr key={m.month} className="border-b border-[var(--line-soft)] last:border-0">
                           <td className={td}>{formatMonth(m.month)}</td>
                           <td className={tdNum}>{m.payments}</td>
                           <td className={tdNum}>{formatMoney(m.usd, "USD")}</td>
@@ -257,10 +286,10 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
               </section>
 
               <section className="flex flex-col gap-2">
-                <h3 className="text-sm font-semibold">Every payment</h3>
-                <div className="overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+                <h3 className="on-canvas text-lg font-black">Every payment</h3>
+                <div className="ff-panel-strong overflow-x-auto rounded-2xl">
                   <table className="w-full min-w-[720px] border-collapse text-sm">
-                    <thead className="border-b border-[var(--line)]">
+                    <thead className="border-b-2 border-[var(--line)]">
                       <tr>
                         <th className={th}>Date paid</th>
                         <th className={th}>Invoice</th>
@@ -273,7 +302,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                     </thead>
                     <tbody>
                       {st.payments.map((p, i) => (
-                        <tr key={`${p.invoice_id}-${p.paid_on}-${i}`} className="border-b border-[var(--line)]">
+                        <tr key={`${p.invoice_id}-${p.paid_on}-${i}`} className="border-b border-[var(--line-soft)]">
                           <td className={td}>{formatDate(p.paid_on)}</td>
                           <td className={td}>{p.invoice_number ? `#${p.invoice_number}` : ""}</td>
                           <td className={td}>{p.client ?? ""}</td>
@@ -294,7 +323,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                         <td className={`${tdNum} font-semibold`}>{formatMoney(st.totals.usd, "USD")}</td>
                         <td className={tdNum} />
                         <td className={td} />
-                        <td className={`${tdNum} font-semibold text-[var(--accent)]`}>{formatMoney(st.totals.local, cur)}</td>
+                        <td className={`${tdNum} font-black text-[var(--accent-strong)]`}>{formatMoney(st.totals.local, cur)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -303,13 +332,14 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
             </>
           )}
 
-          <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm">
-            <h3 className="font-semibold">How the {localWord} values are worked out</h3>
+          <section className="ff-panel rounded-2xl p-4 text-sm sm:p-5">
+            <p className="ff-eyebrow">Method</p>
+            <h3 className="mt-1 font-extrabold">How the {localWord} values are worked out</h3>
             <p className="mt-1 text-[var(--muted)]">{st.method}</p>
             {cur === "ZAR" ? (
               <p className="mt-2">
                 <a
-                  className="text-[var(--accent)] hover:underline"
+                  className="font-extrabold text-[var(--accent-strong)] underline-offset-2 hover:underline"
                   href="https://www.sars.gov.za/lapd-intr-in-2012-63-rules-translation-amounts-foreign-currencies"
                   target="_blank"
                   rel="noreferrer"
@@ -318,7 +348,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                 </a>
                 {" · "}
                 <a
-                  className="text-[var(--accent)] hover:underline"
+                  className="font-extrabold text-[var(--accent-strong)] underline-offset-2 hover:underline"
                   href="https://www.sars.gov.za/legal-pub-aer-01-average-exchange-rates-specific-provisions-income-tax-act"
                   target="_blank"
                   rel="noreferrer"

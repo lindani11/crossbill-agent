@@ -118,12 +118,12 @@ function today(): string {
 }
 
 /** The page a client opens to pay. */
-export function payerViewUrl(invoiceId: string): string {
+function payerViewUrl(invoiceId: string): string {
   const host = IS_SANDBOX ? "https://www.sandbox.paypal.com" : "https://www.paypal.com";
   return `${host}/invoice/p/#${invoiceId}`;
 }
 
-export function summarize(inv: PayPalInvoice): InvoiceSummary {
+function summarize(inv: PayPalInvoice): InvoiceSummary {
   const r = inv.primary_recipients?.[0]?.billing_info;
   const name = r?.name?.full_name ?? [r?.name?.given_name, r?.name?.surname].filter(Boolean).join(" ");
   return {
@@ -225,15 +225,11 @@ export async function getInvoice(id: string): Promise<PayPalInvoice> {
   return paypal<PayPalInvoice>(`/v2/invoicing/invoices/${encodeURIComponent(id)}`);
 }
 
-export async function listInvoicesRaw(pageSize = 20): Promise<PayPalInvoice[]> {
+export async function listInvoices(pageSize = 20): Promise<PayPalInvoice[]> {
   const res = await paypal<{ items?: PayPalInvoice[] }>(
     `/v2/invoicing/invoices?page=1&page_size=${pageSize}&total_required=false`,
   );
   return res.items ?? [];
-}
-
-export async function listInvoices(pageSize = 20): Promise<InvoiceSummary[]> {
-  return (await listInvoicesRaw(pageSize)).map(summarize);
 }
 
 export async function sendReminder(reminder: ReminderProposal): Promise<void> {

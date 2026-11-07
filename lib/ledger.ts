@@ -1,5 +1,5 @@
 import "server-only";
-import { getInvoice, listInvoicesRaw, type PayPalInvoice } from "./paypal";
+import { getInvoice, listInvoices, type PayPalInvoice } from "./paypal";
 import { localCurrency, usdToLocal, type FxSource } from "./fx";
 
 /**
@@ -148,7 +148,7 @@ async function toRow(summary: PayPalInvoice): Promise<LedgerRow> {
 }
 
 export async function getLedger(pageSize = 50): Promise<Ledger> {
-  const invoices = await listInvoicesRaw(pageSize);
+  const invoices = await listInvoices(pageSize);
   const rows = await Promise.all(invoices.map(toRow));
   return { currency: localCurrency(), rows };
 }

@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Simple in-memory rate limiter, per IP. Protects the free AI quota from
  * being used up by one visitor. Resets when the server restarts, which is
- * fine for a hackathon demo; swap for Supabase or Upstash later if needed.
+ * fine for a hackathon demo; swap for a shared store such as Upstash later if needed.
  */
 const hits = new Map<string, number[]>();
 

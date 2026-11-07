@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import SiteFooter from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Crossbill",
@@ -11,13 +12,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f7b5f",
+  themeColor: "#111827",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="flex min-h-dvh flex-col">
+        {children}
+        <SiteFooter />
+      </body>
     </html>
   );
 }
