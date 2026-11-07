@@ -65,9 +65,14 @@ function presets(currency: string): Preset[] {
 
 function Tile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
-    <div className={`${accent ? "ff-panel-strong" : "ff-panel"} rounded-2xl p-4`}>
+    <div className={`${accent ? "ff-panel-strong" : "ff-panel"} min-w-0 rounded-2xl p-3.5 sm:p-4`}>
       <p className="ff-eyebrow !tracking-[0.12em]">{label}</p>
-      <p className={`mt-1 text-2xl font-black tabular-nums ${accent ? "text-[var(--accent-strong)]" : ""}`}>{value}</p>
+      {/* Scales down on small phones so large rand amounts stay inside the tile. */}
+      <p
+        className={`mt-1 text-[clamp(1rem,5.2vw,1.5rem)] font-black tabular-nums [overflow-wrap:anywhere] sm:text-2xl ${accent ? "text-[var(--accent-strong)]" : ""}`}
+      >
+        {value}
+      </p>
       {sub ? <p className="mt-0.5 text-xs text-[var(--muted)]">{sub}</p> : null}
     </div>
   );

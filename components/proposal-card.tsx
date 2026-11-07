@@ -62,13 +62,14 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
     <div className="mt-3 rounded-2xl border-2 border-[var(--accent-strong)] bg-[var(--surface-strong)] p-4 sm:p-5">
       {proposal.kind === "invoice" ? (
         <>
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          {/* On narrow phones the total drops below the client instead of being pushed off the card. */}
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <div className="min-w-0 flex-1 basis-48">
               <p className="ff-eyebrow">Invoice draft</p>
-              <p className="mt-1 font-extrabold">{proposal.data.client_name}</p>
-              <p className="text-sm text-[var(--muted)]">{proposal.data.client_email}</p>
+              <p className="mt-1 font-extrabold [overflow-wrap:anywhere]">{proposal.data.client_name}</p>
+              <p className="text-sm text-[var(--muted)] [overflow-wrap:anywhere]">{proposal.data.client_email}</p>
             </div>
-            <div className="text-right">
+            <div className="shrink-0 sm:text-right">
               <p className="text-2xl font-black tabular-nums">{formatUsd(proposal.total)}</p>
               <p className="text-xs text-[var(--muted)]">
                 {TERM_LABEL[proposal.data.payment_term ?? ""] ?? "Default terms"}
@@ -79,7 +80,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
             <tbody>
               {proposal.data.items.map((it, i) => (
                 <tr key={i} className="border-t border-[var(--line-soft)]">
-                  <td className="py-2 pr-2">
+                  <td className="py-2 pr-2 [overflow-wrap:anywhere]">
                     <span className="font-medium">{it.name}</span>
                     {it.description ? <span className="block text-xs text-[var(--muted)]">{it.description}</span> : null}
                   </td>

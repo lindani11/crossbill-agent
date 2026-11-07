@@ -113,12 +113,15 @@ function StatusChip(p: ICellRendererParams<Row>) {
 function Tile({ label, value, sub, tone }: { label: string; value: string | null; sub?: string; tone?: "accent" | "danger" }) {
   const color = tone === "accent" ? "text-[var(--accent-strong)]" : tone === "danger" ? "text-[var(--danger)]" : "";
   return (
-    <div className={`${tone === "accent" ? "ff-panel-strong" : "ff-panel"} rounded-2xl p-4`}>
+    <div className={`${tone === "accent" ? "ff-panel-strong" : "ff-panel"} min-w-0 rounded-2xl p-3.5 sm:p-4`}>
       <p className="ff-eyebrow !tracking-[0.12em]">{label}</p>
       {value === null ? (
-        <div className="ff-skeleton mt-2 h-7 w-28" aria-hidden="true" />
+        <div className="ff-skeleton mt-2 h-7 w-full max-w-28" aria-hidden="true" />
       ) : (
-        <p className={`mt-1 text-2xl font-black tabular-nums ${color}`}>{value}</p>
+        // Scales down on small phones so large rand amounts stay inside the tile.
+        <p className={`mt-1 text-[clamp(1rem,5.2vw,1.5rem)] font-black tabular-nums [overflow-wrap:anywhere] sm:text-2xl ${color}`}>
+          {value}
+        </p>
       )}
       {sub ? <p className="mt-0.5 text-xs text-[var(--muted)]">{sub}</p> : null}
     </div>

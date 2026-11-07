@@ -31,7 +31,7 @@ const EXAMPLES: { who: string; email: string; text: (email: string) => string }[
   {
     who: "Translator",
     email: "ngwenyaholdings@personal.example.com",
-    text: (e) => `Bill Ngwenya Holdings (${e}) for translating 4,500 words from English to isiZulu at $0.08 a word`,
+    text: (e) => `Invoice Ngwenya Holdings (${e}) for translating 4,500 words from English to isiZulu at $0.08 a word`,
   },
 ];
 
@@ -126,7 +126,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
                   <button
                     key={ex.text}
                     onClick={() => send(ex.text)}
-                    className="ff-option rounded-xl px-4 py-3 text-left text-sm text-[var(--ink)]"
+                    className="ff-option rounded-xl px-4 py-3 text-left text-sm text-[var(--ink)] [overflow-wrap:anywhere]"
                   >
                     <span className="mb-0.5 block text-[11px] font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
                       {ex.who}
@@ -142,14 +142,14 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-sm border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)]">
+              <p className="max-w-[85%] rounded-2xl rounded-br-sm [overflow-wrap:anywhere] border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)]">
                 {m.content}
               </p>
             </div>
           ) : (
             <div key={i} className="max-w-full">
               <div className="ff-panel rounded-2xl rounded-bl-sm px-4 py-3">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">{m.content}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)] [overflow-wrap:anywhere]">{m.content}</p>
                 {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
               </div>
               {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {m.provider}</p> : null}
