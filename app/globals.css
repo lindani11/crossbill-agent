@@ -305,6 +305,127 @@ body {
   }
 }
 
+/*
+ * Landing animation (components/splash.tsx): the logo draws itself, then the
+ * name and tagline rise in, in about 1.6 seconds. The script fades it out once
+ * the page has loaded; if the script never runs, it hides itself after 7s.
+ */
+.cb-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--canvas);
+  transition: opacity 400ms ease, visibility 400ms;
+  animation: cb-splash-out 400ms ease 7s forwards;
+}
+
+.cb-splash-leave {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.cb-s-globe,
+.cb-s-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+}
+
+.cb-s-globe {
+  animation: cb-s-pop 400ms cubic-bezier(0.2, 0.8, 0.2, 1) 50ms forwards;
+}
+
+.cb-s-eye {
+  animation: cb-s-pop 300ms cubic-bezier(0.3, 1.6, 0.5, 1) 1.05s forwards;
+}
+
+.cb-s-grid {
+  opacity: 0;
+  animation: cb-s-grid 300ms ease-out 300ms forwards;
+}
+
+/* Hidden until its own start, so round line caps never show as dots early. */
+.cb-s-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation: cb-s-draw 450ms ease-in-out forwards;
+}
+
+.cb-s-word,
+.cb-s-tag {
+  margin: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: cb-s-rise 400ms ease-out forwards;
+}
+
+.cb-s-word {
+  margin-top: 0.25rem;
+  line-height: 1;
+  animation-delay: 0.9s;
+}
+
+.cb-s-tag {
+  animation-delay: 1.2s;
+}
+
+.cb-s-wait {
+  margin-top: 0.75rem;
+  opacity: 0;
+  animation: ff-spin 0.8s linear infinite, cb-s-show 300ms ease 2.4s forwards;
+}
+
+@keyframes cb-s-pop {
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes cb-s-grid {
+  to {
+    opacity: 0.6;
+  }
+}
+
+@keyframes cb-s-draw {
+  from {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes cb-s-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cb-s-show {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cb-splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 @keyframes ff-spin {
   to {
     transform: rotate(360deg);
@@ -314,6 +435,21 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .ff-spinner {
     animation-duration: 2s;
+  }
+  /* Landing: show the finished logo without drawing it. */
+  .cb-s-globe,
+  .cb-s-eye,
+  .cb-s-draw,
+  .cb-s-word,
+  .cb-s-tag {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    stroke-dashoffset: 0;
+  }
+  .cb-s-grid {
+    animation: none;
+    opacity: 0.6;
   }
   .ff-option::before {
     display: none;
