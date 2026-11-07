@@ -12,14 +12,12 @@ type Message = {
 };
 
 // One example per kind of freelancer, to show Crossbill works for any field.
+const PLACEHOLDER = "Describe the job to invoice, or ask who owes you…";
+
 const EXAMPLES = [
   { who: "Tutor", text: "Invoice Emma Brown (emma.brown@example.com) for 8 online maths lessons at $20 each in October" },
-  { who: "Translator", text: "Bill Acme Ltd (accounts@acme.example.com) for translating 4,500 words from English to isiZulu at $0.08 a word" },
-  { who: "Designer", text: "Invoice Bloom Café (hello@bloomcafe.example.com) a flat $450 for a logo and brand kit, due on receipt" },
   { who: "Developer", text: "Invoice Sarah Lee (sarah@example.com) for 3 days of Next.js work at $250 a day plus $120 for hosting setup" },
-  { who: "Virtual assistant", text: "Invoice James Cole (james@example.com) for 20 hours of admin support at $12 an hour" },
-  { who: "Any freelancer", text: "Who owes me money right now?" },
-  { who: "Tax time", text: "How much did I earn this tax year, in rand?" },
+  { who: "Translator", text: "Bill Acme Ltd (accounts@acme.example.com) for translating 4,500 words from English to isiZulu at $0.08 a word" },
 ];
 
 /** Safety net in case a model still sends markdown: show clean plain text. */
@@ -39,8 +37,21 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  // Every visit or refresh opens at the top: the intro, the examples and the input.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const { history } = window;
+    const previous = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+    return () => {
+      history.scrollRestoration = previous;
+    };
+  }, []);
+
+  // Follow the conversation only once it has started.
+  useEffect(() => {
+    if (messages.length === 0 && !loading) return;
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
   async function send(text: string) {
@@ -85,8 +96,8 @@ export default function Chat() {
               </p>
             </div>
             <div className="ff-panel-strong rounded-2xl p-4 sm:p-5">
-              <p className="ff-eyebrow">Works for any freelancer · try one</p>
-              <div className="mt-3 flex flex-col gap-2">
+              <p className="ff-eyebrow">Works for any freelancer · try one below</p>
+              <div className="ff-options mt-3 flex flex-col gap-2">
                 {EXAMPLES.map((ex) => (
                   <button
                     key={ex.text}
@@ -143,12 +154,23 @@ export default function Chat() {
         }}
         className="sticky bottom-0 -mx-2 flex gap-2 rounded-t-2xl bg-[rgb(35_20_10/0.6)] px-2 pt-3 pb-2"
       >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Describe the job to invoice, or ask who owes you…"
-          className="ff-input min-w-0 flex-1 text-sm"
-        />
+        <div className="relative min-w-0 flex-1">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            aria-label={PLACEHOLDER}
+            className="ff-input w-full text-sm"
+          />
+          {/* Placeholder that scrolls sideways on narrow screens so it can be read in full. */}
+          {input ? null : (
+            <span aria-hidden="true" className="ff-placeholder text-sm">
+              <span className="ff-marquee">
+                <span>{PLACEHOLDER}</span>
+                <span className="ff-marquee-copy">{PLACEHOLDER}</span>
+              </span>
+            </span>
+          )}
+        </div>
         <button
           type="submit"
           disabled={loading || !input.trim()}

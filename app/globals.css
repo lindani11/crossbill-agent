@@ -187,16 +187,67 @@ body {
     border-color: var(--line);
   }
 
+  /*
+   * Example prompts: all cards flash cream together every 3 seconds, so they
+   * read as tappable. The flash colour animates on a layer behind the text and
+   * never stops or restarts, so the cards always stay in step. While the
+   * pointer is over the list, the layer fades out (locked); it fades back in,
+   * still in step, when the pointer leaves. The lock uses opacity, which the
+   * animation never touches, so it cannot disturb the timing.
+   */
   .ff-option {
+    position: relative;
+    isolation: isolate;
     border: 1px solid var(--line-soft);
     background: #ffffff;
-    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .ff-option::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: rgb(196 178 140 / 0);
+    animation: ff-flash 3s ease-in-out infinite;
+    transition: opacity 200ms ease;
+  }
+
+  .ff-options:focus-within .ff-option::before {
+    opacity: 0;
+  }
+
+  @media (hover: hover) {
+    .ff-options:hover .ff-option::before {
+      opacity: 0;
+    }
   }
 
   .ff-option:hover,
   .ff-option:focus-visible {
     border-color: var(--line);
     background: var(--bg);
+  }
+
+  /* Chat input placeholder: one line; on phones it scrolls so the whole text shows. */
+  .ff-placeholder {
+    pointer-events: none;
+    position: absolute;
+    inset: 0 18px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    color: rgb(55 65 81 / 0.7);
+  }
+
+  .ff-marquee {
+    display: inline-flex;
+    gap: 3rem;
+  }
+
+  .ff-marquee-copy {
+    display: none;
   }
 
   /* Loading: a small ring spinner and plain placeholder blocks. */
@@ -222,6 +273,38 @@ body {
   }
 }
 
+@keyframes ff-flash {
+  0%,
+  60%,
+  100% {
+    background-color: rgb(196 178 140 / 0);
+  }
+  25% {
+    background-color: rgb(196 178 140 / 0.76);
+  }
+}
+
+@keyframes ff-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 1.5rem));
+  }
+}
+
+@media (max-width: 639px) {
+  .ff-placeholder {
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  }
+  .ff-marquee {
+    animation: ff-marquee 14s linear infinite;
+  }
+  .ff-marquee-copy {
+    display: inline;
+  }
+}
+
 @keyframes ff-spin {
   to {
     transform: rotate(360deg);
@@ -231,6 +314,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .ff-spinner {
     animation-duration: 2s;
+  }
+  .ff-option::before {
+    display: none;
+  }
+  .ff-marquee {
+    animation: none;
+  }
+  .ff-marquee-copy {
+    display: none;
+  }
+  .ff-placeholder {
+    mask-image: none;
+    text-overflow: ellipsis;
   }
 }
 

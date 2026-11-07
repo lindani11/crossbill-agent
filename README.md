@@ -9,7 +9,7 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 
 ## Try it in 3 minutes (for judges)
 
-1. Open **https://crossbill-agent.vercel.app** and type (or tap the matching example):
+1. Open **https://crossbill-agent.vercel.app** and type:
    > Invoice Sarah Lee (sb-0dyw4353715522@personal.example.com) for 2 hours of tutoring at $25 an hour
 2. Check the invoice card, then tap **Approve & send**. Crossbill creates the invoice in PayPal and sends it.
 3. Tap **Open the client's payment page** and log in as the test client:
