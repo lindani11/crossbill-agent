@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 /*
- * Crossbill look: a flat design with a pale cream canvas,
- * white panels with deep-blue edges, sky-blue actions, and no decorative
- * effects (no textures, shadows, blur, glow or motion).
+ * Crossbill look: a flat design with a pale cream canvas, white panels with
+ * deep-blue edges and sky-blue actions. No textures, shadows, blur or glow;
+ * motion only where it helps (landing, example flash, dropdown), and none
+ * for people who ask for reduced motion.
  */
 :root {
   --canvas: #ebe3d2; /* pale cream */
@@ -56,6 +57,25 @@ body {
   .ff-panel-strong {
     border: 2px solid var(--line);
     background: var(--surface);
+  }
+
+  /* Keyboard users: a "Skip to content" link that appears on first Tab. */
+  .ff-skip {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 50;
+    border: 2px solid var(--line);
+    border-radius: 0.75rem;
+    background: #ffffff;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .ff-skip:focus {
+    top: 0.75rem;
   }
 
   .ff-topbar {
@@ -174,7 +194,7 @@ body {
   }
 
   .ff-input::placeholder {
-    color: rgb(55 65 81 / 0.7);
+    color: #6b7280; /* 4.8:1 on white */
   }
 
   .ff-input:hover {
@@ -267,7 +287,7 @@ body {
     align-items: center;
     overflow: hidden;
     white-space: nowrap;
-    color: rgb(55 65 81 / 0.7);
+    color: #6b7280; /* 4.8:1 on white */
   }
 
   .ff-marquee {
@@ -336,7 +356,7 @@ body {
 
 /*
  * Landing animation (components/splash.tsx): the logo draws itself, then the
- * name and tagline rise in, in about 1.6 seconds. The script fades it out once
+ * name rises in, in about 1.6 seconds. The script fades it out once
  * the page has loaded; if the script never runs, it hides itself after 7s.
  */
 .cb-splash {
@@ -388,22 +408,12 @@ body {
   animation: cb-s-draw 450ms ease-in-out forwards;
 }
 
-.cb-s-word,
-.cb-s-tag {
-  margin: 0;
+.cb-s-word {
+  margin: 0.25rem 0 0;
+  line-height: 1;
   opacity: 0;
   transform: translateY(8px);
-  animation: cb-s-rise 400ms ease-out forwards;
-}
-
-.cb-s-word {
-  margin-top: 0.25rem;
-  line-height: 1;
-  animation-delay: 0.9s;
-}
-
-.cb-s-tag {
-  animation-delay: 1.2s;
+  animation: cb-s-rise 400ms ease-out 0.9s forwards;
 }
 
 .cb-s-wait {
@@ -469,8 +479,7 @@ body {
   .cb-s-globe,
   .cb-s-eye,
   .cb-s-draw,
-  .cb-s-word,
-  .cb-s-tag {
+  .cb-s-word {
     animation: none;
     opacity: 1;
     transform: none;

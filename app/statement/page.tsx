@@ -15,7 +15,7 @@ export default async function StatementPage({
   return (
     <>
       <SiteHeader active="statement" />
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-6 pb-10 sm:px-6">
+      <main id="main" className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-6 pb-10 sm:px-6">
         <StatementView initialFrom={valid ? from : undefined} initialTo={valid ? to : undefined} />
       </main>
     </>

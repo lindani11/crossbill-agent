@@ -203,7 +203,8 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
           onStateUpdated={(e: { durable?: boolean; state?: unknown }) => {
             if (!e?.durable) return;
             const json = JSON.stringify(e.state);
-            console.log("[ag-studio] report state", json);
+            // In development, log the report so it can be pasted into defaultReport().
+            if (process.env.NODE_ENV !== "production") console.log("[ag-studio] report state", json);
             try {
               window.localStorage.setItem(storageKey, json);
             } catch {

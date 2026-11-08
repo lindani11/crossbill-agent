@@ -320,7 +320,7 @@ function providers(): { name: string; model: LanguageModel }[] {
   return list;
 }
 
-export type AgentResult = { text: string; proposals: Proposal[]; suggestions?: Example[]; provider: string };
+type AgentResult = { text: string; proposals: Proposal[]; suggestions?: Example[]; provider: string };
 
 // Longest wait worth taking before retrying a rate-limited provider. Longer
 // waits go straight to the backup instead (the chat route allows 60 s in all).
@@ -340,6 +340,36 @@ function shortRateLimitWait(err: unknown): number | null {
   if (seconds === null || !Number.isFinite(seconds)) return null;
   const ms = Math.ceil(seconds * 1000) + 500;
   return ms <= MAX_RATE_LIMIT_WAIT_MS ? ms : null;
+}
+
+/**
+ * Removes tool-call JSON a model sometimes writes into its reply, such as
+ * {"tool": "functions.show_examples", "arguments": {}}, fenced or bare.
+ */
+function stripToolJson(text: string): { text: string; mentionsExamples: boolean } {
+  let out = text.replace(/```(?:json)?\s*([\s\S]*?)```/gi, (block, inner: string) =>
+    /"(tool|function|name|arguments|parameters)"\s*:/.test(inner) ? inner : block,
+  );
+  let mentionsExamples = false;
+  for (let start = out.indexOf("{"); start !== -1; start = out.indexOf("{", start + 1)) {
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < out.length; i++) {
+      if (out[i] === "{") depth++;
+      else if (out[i] === "}" && --depth === 0) {
+        end = i;
+        break;
+      }
+    }
+    if (end === -1) break;
+    const candidate = out.slice(start, end + 1);
+    if (/"(tool|function|tool_name|arguments|parameters)"\s*:/.test(candidate)) {
+      if (/show_examples/.test(candidate)) mentionsExamples = true;
+      out = out.slice(0, start) + out.slice(end + 1);
+      start -= 1;
+    }
+  }
+  return { text: out.replace(/\n{3,}/g, "\n\n").trim(), mentionsExamples };
 }
 
 /** "[Show examples]", "show_examples()" and similar, typed by a model instead of calling the tool. */
@@ -390,6 +420,10 @@ export async function runAgent(messages: ModelMessage[]): Promise<AgentResult> {
           text = "I can draft PayPal invoices for you to approve, chase late payers and show what you've earned. What would you like to do?";
           ui.examples = true;
         }
+        // Backstop for models that write a tool call as text (JSON or "[Show examples]").
+        const cleaned = stripToolJson(text);
+        if (cleaned.mentionsExamples) ui.examples = true;
+        text = cleaned.text;
         // Backstop for models that type the tool instead of calling it ("[Show examples]").
         if (EXAMPLES_PLACEHOLDER.test(text)) {
           text = text.replace(new RegExp(EXAMPLES_PLACEHOLDER.source, "gi"), "").replace(/\n{3,}/g, "\n\n").trim();

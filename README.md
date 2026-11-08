@@ -10,7 +10,7 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 ## Try it in 3 minutes (for judges)
 
 1. Open **https://crossbill-agent.vercel.app** and type:
-   > Invoice PayPal Hackathon (paypalhackathon@personal.example.com) for 2 hours of tutoring at $25 an hour
+   > Invoice paypal.com (paypalhackathon@personal.example.com) for my participation in the "What's next with AI + PayPal?" hackathon at $380 per day for 4 days
 2. Check the invoice card, then tap **Approve & send**. Crossbill creates the invoice in PayPal and sends it.
 3. Tap **Open the client's payment page** and log in as the test client:
 
@@ -42,6 +42,8 @@ PayPal can't invoice in South African rand, so freelancers here (and in many oth
 | Ask about earnings | "What did I earn in October?" or "How much did I earn this tax year, in rand?" |
 | Receivables dashboard | An [AG Grid](https://www.ag-grid.com/) table of every invoice plus [AG Studio](https://www.ag-grid.com/studio/) reports over invoices and payments |
 | Any local currency | Rand by default; about 30 currencies from European Central Bank rates (INR, PHP, BRL, MXN...), plus currencies such as KES and NGN from community rates |
+| Talks like a helper | Greetings, vague or off-topic messages get a short, polite answer, a follow-up question and the example prompts as buttons; missing invoice details are asked for, never guessed |
+| Phone-ready app | Works on a 320-pixel screen, installs as an app, and shows a clear offline page when the connection drops |
 
 ## Why the rate on the day you were paid
 
@@ -111,8 +113,18 @@ Both run on free tiers. The model order and names are set by environment variabl
 - On the sandbox, invoices and reminders only go to the listed test client accounts (`SANDBOX_TEST_EMAILS`). PayPal has no API to check whether an email belongs to a PayPal account, so anything else is refused before it reaches PayPal, both when the agent drafts it and when you approve
 - Webhooks are accepted only after PayPal verifies their signature
 - One request id per invoice card, so a double tap can never create two invoices
-- Per-IP rate limits on every route
-- Secrets live only in environment variables; `.env.local` is git-ignored
+- Per-IP rate limits on every route, including the webhook, with size limits on what each route accepts
+- Strict input validation (zod) on every request, and invoice ids checked before they reach a PayPal URL
+- Security headers on every response: a content security policy, no framing, no MIME sniffing, HTTPS only
+- No known vulnerabilities in production dependencies (`npm audit`)
+- Secrets live only in environment variables; `.env.local` is git-ignored, and nothing secret reaches the browser
+
+## Accessibility
+
+- Checked with [axe](https://github.com/dequelabs/axe-core) on every page and mid-conversation: no violations
+- Keyboard first: a "Skip to content" link, visible focus rings, Enter to send and Shift+Enter for a new line
+- Screen readers hear each new reply (the conversation is a live region), and every page has proper headings
+- Text meets WCAG AA contrast, and animations stop for people who ask for reduced motion
 
 ## Run it locally
 
@@ -158,7 +170,9 @@ Open http://localhost:3000.
 | `app/statement`, `app/api/statement` | Tax statement page, plus JSON, CSV and PDF |
 | `app/api/invoices/send`, `remind` | Run only on Approve |
 | `app/api/paypal/webhook` | Verified payment webhook |
-| `components/` | Chat, approval cards, dashboard, reports, statement, logo |
+| `components/` | Chat, approval cards, dashboard, reports, statement, logo, landing animation |
+| `public/sw.js`, `public/offline.html` | Service worker that shows the offline page; it caches nothing else |
+| `next.config.ts` | Security headers |
 | `app/icon.svg`, `app/apple-icon.png`, `public/icons/` | Favicon and app icons |
 
 ## What's next

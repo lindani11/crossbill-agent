@@ -5,12 +5,11 @@ export type PaymentTerm = (typeof PAYMENT_TERMS)[number];
 
 /** PayPal's units of measure for invoice lines. */
 export const UNITS = ["QUANTITY", "HOURS", "AMOUNT"] as const;
-export type Unit = (typeof UNITS)[number];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** One invoice line, amounts in USD. */
-export const lineItemSchema = z.object({
+const lineItemSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   quantity: z.number().positive().max(100000),
@@ -24,7 +23,7 @@ export const lineItemSchema = z.object({
  */
 export const invoiceProposalSchema = z.object({
   client_name: z.string().min(1).max(140),
-  client_email: z.string().regex(EMAIL_RE, "Must be a valid email address"),
+  client_email: z.string().max(254).regex(EMAIL_RE, "Must be a valid email address"),
   items: z.array(lineItemSchema).min(1).max(50),
   note: z.string().max(4000).optional(),
   payment_term: z.enum(PAYMENT_TERMS).optional(),
@@ -33,7 +32,7 @@ export type InvoiceProposal = z.infer<typeof invoiceProposalSchema>;
 
 /** A reminder the agent proposes for an unpaid invoice. */
 export const reminderProposalSchema = z.object({
-  invoice_id: z.string().min(1).max(64),
+  invoice_id: z.string().min(1).max(64).regex(/^[A-Za-z0-9-]+$/, "Not a PayPal invoice id"),
   invoice_number: z.string().max(64).optional(),
   client_name: z.string().max(140).optional(),
   subject: z.string().min(1).max(200),
@@ -63,16 +62,4 @@ export function invoiceTotal(items: InvoiceProposal["items"]): number {
     0,
   );
   return cents / 100;
-}
-
-/** How a line's quantity reads on screen, e.g. "20 h × $12.00" or "Flat fee". */
-export function describeQuantity(item: { quantity: number; unit_amount: number; unit?: Unit }): string {
-  if (item.unit === "AMOUNT") return "Flat fee";
-  const qty = new Intl.NumberFormat("en-US").format(item.quantity);
-  const rate = formatUsd(item.unit_amount);
-  return item.unit === "HOURS" ? `${qty} h × ${rate}/h` : `${qty} × ${rate}`;
-}
-
-export function formatUsd(value: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 }

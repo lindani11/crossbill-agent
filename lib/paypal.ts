@@ -93,7 +93,7 @@ export type PayPalInvoice = {
   links?: { href: string; rel: string; method?: string }[];
 };
 
-export type InvoiceSummary = {
+type InvoiceSummary = {
   id: string;
   number: string | null;
   status: string;
@@ -246,7 +246,7 @@ export async function sendReminder(reminder: ReminderProposal): Promise<void> {
 
 // ---------- Webhooks ----------
 
-export type WebhookHeaders = {
+type WebhookHeaders = {
   authAlgo: string | null;
   certUrl: string | null;
   transmissionId: string | null;

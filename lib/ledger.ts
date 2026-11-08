@@ -21,7 +21,7 @@ export type LedgerPayment = {
   amount_local: number | null;
 };
 
-export type LedgerRow = {
+type LedgerRow = {
   id: string;
   number: string | null;
   client: string | null;
@@ -40,7 +40,7 @@ export type LedgerRow = {
   payments: LedgerPayment[];
 };
 
-export type Ledger = { currency: string; rows: LedgerRow[] };
+type Ledger = { currency: string; rows: LedgerRow[] };
 
 const PAID_STATUSES = new Set(["PAID", "PARTIALLY_PAID", "MARKED_AS_PAID"]);
 const OPEN_STATUSES = new Set(["SENT", "UNPAID", "PARTIALLY_PAID", "SCHEDULED"]);
@@ -161,7 +161,7 @@ export function paymentsIn(rows: LedgerRow[], from?: string, to?: string): Ledge
     .sort((a, b) => a.paid_on.localeCompare(b.paid_on) || (a.invoice_number ?? "").localeCompare(b.invoice_number ?? ""));
 }
 
-export type Totals = {
+type Totals = {
   outstanding_usd: number;
   overdue_usd: number;
   overdue_count: number;

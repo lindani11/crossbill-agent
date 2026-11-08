@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <>
       <SiteHeader active="chat" />
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-6">
+      <main id="main" className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-6">
         <Chat testEmails={exampleRecipients()} />
       </main>
     </>

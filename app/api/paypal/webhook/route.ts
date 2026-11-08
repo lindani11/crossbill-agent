@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInvoice, verifyWebhookSignature, type PayPalInvoice } from "@/lib/paypal";
 import { formatLocal, localCurrency, usdToLocal } from "@/lib/fx";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,14 @@ type WebhookEvent = {
  * so this route confirms the payment and logs it in local currency.
  */
 export async function POST(req: Request) {
+  // Every call costs a signature check against PayPal, so cap the rate and size.
+  if (!rateLimit(`webhook:${clientIp(req)}`, 120)) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+  }
   const raw = await req.text();
+  if (raw.length > 200_000) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
   let event: WebhookEvent;
   try {
     event = JSON.parse(raw);
@@ -97,5 +105,5 @@ export async function POST(req: Request) {
     JSON.stringify(record),
   );
 
-  return NextResponse.json({ ok: true, record });
+  return NextResponse.json({ ok: true });
 }

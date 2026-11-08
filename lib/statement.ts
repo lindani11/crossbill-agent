@@ -26,7 +26,7 @@ export function defaultPeriod(): Period {
   return saTaxYear(currentSaTaxYearEnd());
 }
 
-export function methodNote(currency: string): string {
+function methodNote(currency: string): string {
   const base =
     "Each payment is converted from US dollars at the exchange rate for the day it was paid. " +
     "On weekends and public holidays the European Central Bank publishes no rate, so the last working day's rate is used; the rate date column shows which day.";

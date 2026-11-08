@@ -14,7 +14,7 @@ import { formatMoney } from "./money";
  */
 
 export type FxSource = "ecb" | "community" | "parity";
-export type FxRate = { rate: number; date: string; source: FxSource };
+type FxRate = { rate: number; date: string; source: FxSource };
 
 export const FX_SOURCE_LABEL: Record<FxSource, string> = {
   ecb: "European Central Bank reference rate (via Frankfurter)",
@@ -78,7 +78,7 @@ async function lookup(currency: string, day: string): Promise<FxRate | null> {
 }
 
 /** USD to `currency` on `onDate` (YYYY-MM-DD or an ISO timestamp); latest when omitted. */
-export async function usdTo(currency: string, onDate?: string): Promise<FxRate | null> {
+async function usdTo(currency: string, onDate?: string): Promise<FxRate | null> {
   const cur = currency.toUpperCase();
   const day = onDate ? onDate.slice(0, 10) : "latest";
   if (cur === "USD") return { rate: 1, date: day === "latest" ? new Date().toISOString().slice(0, 10) : day, source: "parity" };

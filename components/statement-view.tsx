@@ -265,7 +265,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
           ) : (
             <>
               <section className="flex flex-col gap-2">
-                <h3 className="on-canvas text-lg font-black">By month</h3>
+                <h2 className="on-canvas text-lg font-black">By month</h2>
                 <div className="ff-panel-strong overflow-x-auto rounded-2xl">
                   <table className="w-full min-w-[420px] border-collapse text-sm">
                     <thead className="border-b-2 border-[var(--line)]">
@@ -291,7 +291,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
               </section>
 
               <section className="flex flex-col gap-2">
-                <h3 className="on-canvas text-lg font-black">Every payment</h3>
+                <h2 className="on-canvas text-lg font-black">Every payment</h2>
                 <div className="ff-panel-strong overflow-x-auto rounded-2xl">
                   <table className="w-full min-w-[720px] border-collapse text-sm">
                     <thead className="border-b-2 border-[var(--line)]">
@@ -339,7 +339,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
 
           <section className="ff-panel rounded-2xl p-4 text-sm sm:p-5">
             <p className="ff-eyebrow">Method</p>
-            <h3 className="mt-1 font-extrabold">How the {localWord} values are worked out</h3>
+            <h2 className="mt-1 font-extrabold">How the {localWord} values are worked out</h2>
             <p className="mt-1 text-[var(--muted)]">{st.method}</p>
             {cur === "ZAR" ? (
               <p className="mt-2">

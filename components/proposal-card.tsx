@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { describeQuantity, formatUsd, type Proposal } from "@/lib/schemas";
+import type { Proposal } from "@/lib/schemas";
+import { describeQuantity, formatMoney } from "@/lib/money";
 
 type SendState =
   | { status: "idle" }
@@ -70,7 +71,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
               <p className="text-sm text-[var(--muted)] [overflow-wrap:anywhere]">{proposal.data.client_email}</p>
             </div>
             <div className="shrink-0 sm:text-right">
-              <p className="text-2xl font-black tabular-nums">{formatUsd(proposal.total)}</p>
+              <p className="text-2xl font-black tabular-nums">{formatMoney(proposal.total, "USD")}</p>
               <p className="text-xs text-[var(--muted)]">
                 {TERM_LABEL[proposal.data.payment_term ?? ""] ?? "Default terms"}
               </p>
@@ -87,7 +88,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
                   <td className="py-2 pr-2 text-right tabular-nums text-[var(--muted)]">
                     {describeQuantity(it)}
                   </td>
-                  <td className="py-2 text-right tabular-nums">{formatUsd(it.quantity * it.unit_amount)}</td>
+                  <td className="py-2 text-right tabular-nums">{formatMoney(it.quantity * it.unit_amount, "USD")}</td>
                 </tr>
               ))}
             </tbody>

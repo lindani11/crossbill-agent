@@ -5,6 +5,14 @@
 
 const DIGITS = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/** How a line's quantity reads on screen, e.g. "20 h × $12.00/h" or "Flat fee". */
+export function describeQuantity(item: { quantity: number; unit_amount: number; unit?: string }): string {
+  if (item.unit === "AMOUNT") return "Flat fee";
+  const qty = new Intl.NumberFormat("en-US").format(item.quantity);
+  const rate = formatMoney(item.unit_amount, "USD");
+  return item.unit === "HOURS" ? `${qty} h × ${rate}/h` : `${qty} × ${rate}`;
+}
+
 /** "$1,151.89", "R1,151.89", "₹1,151.89", "KES 1,151.89". */
 export function formatMoney(value: number, currency: string): string {
   const cur = currency.toUpperCase();

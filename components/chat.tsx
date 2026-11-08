@@ -61,7 +61,8 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   // Follow the conversation only once it has started.
   useEffect(() => {
     if (messages.length === 0 && !loading) return;
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    endRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
   }, [messages, loading]);
 
   async function send(text: string) {
@@ -100,7 +101,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
 
   return (
     <div className="flex flex-1 flex-col pb-4">
-      <div className="flex-1 space-y-4 py-2">
+      <div role="log" aria-live="polite" aria-label="Conversation" className="flex-1 space-y-4 py-2">
         {messages.length === 0 ? (
           <>
             <div>
@@ -116,7 +117,10 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
               <ExampleList examples={examples} onPick={send} />
             </div>
           </>
-        ) : null}
+        ) : (
+          // The intro (with the page heading) is gone once the chat starts; keep a heading for screen readers.
+          <h1 className="sr-only">Chat with Crossbill</h1>
+        )}
 
         {messages.map((m, i) =>
           m.role === "user" ? (
@@ -150,7 +154,8 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
             {error}
           </p>
         ) : null}
-        <div ref={endRef} />
+        {/* Scroll target; the margin keeps the last card clear of the sticky input. */}
+        <div ref={endRef} className="scroll-mb-32" />
       </div>
 
       <form
@@ -167,14 +172,14 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              // Enter adds a line; Ctrl+Enter (Cmd+Enter on a Mac) sends.
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              // Enter sends; Shift+Enter adds a line. Not while an IME is composing (e.g. Japanese input).
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 send(input);
               }
             }}
             aria-label={PLACEHOLDER}
-            aria-keyshortcuts="Control+Enter Meta+Enter"
+            aria-keyshortcuts="Enter"
             className="ff-input block w-full resize-none overflow-y-auto text-sm leading-6"
           />
           {/* Placeholder that scrolls sideways on narrow screens so it can be read in full. */}
