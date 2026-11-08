@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/crossbill-logo.svg" width="112" height="112" alt="Crossbill logo: a globe-shaped bird head with a dollar sign and a crossed beak">
+</p>
+
 # Crossbill
 
 **Describe the job. Approve. Get paid. Your tax books keep themselves.**
@@ -5,6 +9,7 @@
 Crossbill is an AI agent for freelancers paid by overseas clients. Describe the job in plain words and it drafts a PayPal invoice, sends it once you approve, chases late payers, and keeps tax-ready books in your own currency, converting every payment at the exchange rate on the day you were paid.
 
 - **Live demo:** https://crossbill-agent.vercel.app (no sign-up, no access code, no cold start)
+- **Demo video (2:46):** https://youtu.be/74J9ANQp7qw
 - **Built for:** the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/), running on the PayPal **sandbox** (no real money moves)
 
 ## Try it in 3 minutes (for judges)
@@ -21,7 +26,7 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 
    Pay the invoice with the buyer's PayPal balance.
 4. Back in Crossbill, ask **"Who owes me and who has paid?"** The invoice now shows as PAID, with its rand value at that day's rate.
-5. Open **Dashboard**: every invoice in an AG Grid table, and AG Studio reports you can edit.
+5. Open **Dashboard**: every invoice in an AG Grid table, and a ready-made AG Studio report (totals, rand per month, rand per client) that you can reshape with **Edit report**.
 6. Open **Statement**: this tax year's income, payment by payment, in USD and rand. Tap **Download PDF** or **Download CSV**.
 7. Try a reminder: **"Draft a polite reminder for my oldest unpaid invoice"**, then **Approve & send**.
 
@@ -144,11 +149,14 @@ Open http://localhost:3000.
 | Variable | Where to get it |
 | --- | --- |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | [PayPal Developer](https://developer.paypal.com/dashboard/applications/sandbox) > Apps & Credentials > Sandbox |
+| `PAYPAL_API_BASE` | Optional, default `https://api-m.sandbox.paypal.com` (the sandbox); use `https://api-m.paypal.com` for live PayPal |
 | `PAYPAL_WEBHOOK_ID` | Shown after you add a webhook for **Invoicing invoice paid** on the same sandbox app |
 | `SANDBOX_TEST_EMAILS` | Your sandbox **personal** (client) account emails, comma-separated. Only these can receive invoices on the sandbox |
 | `GROQ_API_KEY` | [Groq console](https://console.groq.com/keys) (free) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) (free) |
 | `AI_PROVIDER_ORDER` | Optional, default `groq,gemini` |
+| `GROQ_MODEL`, `GEMINI_MODEL` | Optional, defaults `openai/gpt-oss-120b` and `gemini-3.8-flash` |
+| `DEFAULT_PAYMENT_TERM` | Optional, default `NET_15`; or `DUE_ON_RECEIPT`, `NET_10`, `NET_30` |
 | `LOCAL_CURRENCY` | Optional, default `ZAR`; any ISO code, e.g. `INR`, `PHP`, `KES` |
 | `BUSINESS_NAME` | Optional: the name clients see on your invoices and statement |
 
@@ -174,6 +182,7 @@ Open http://localhost:3000.
 | `public/sw.js`, `public/offline.html` | Service worker that shows the offline page; it caches nothing else |
 | `next.config.ts` | Security headers |
 | `app/icon.svg`, `app/apple-icon.png`, `public/icons/` | Favicon and app icons |
+| `public/crossbill-logo.svg` | The full logo, used at the top of this README |
 
 ## What's next
 

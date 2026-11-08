@@ -8,7 +8,18 @@ export default function SiteFooter() {
           <CrossbillMark size={22} variant="dark" />
           <span>© 2026 Crossbill · Get paid by overseas clients. Your tax books keep themselves.</span>
         </p>
-        <p>PayPal sandbox demo · No real money moves</p>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>PayPal sandbox demo · No real money moves</span>
+          <a
+            href="https://youtu.be/74J9ANQp7qw"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold text-white underline underline-offset-2 hover:text-[var(--accent-hover)]"
+          >
+            Watch the demo video
+            <span className="sr-only"> (opens YouTube in a new tab)</span>
+          </a>
+        </p>
       </div>
     </footer>
   );
