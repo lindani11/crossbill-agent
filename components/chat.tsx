@@ -40,6 +40,9 @@ function exampleEmail(own: string, index: number, testEmails: string[]): string 
   return testEmails[index % testEmails.length];
 }
 
+/** How each AI provider is named under a reply. */
+const PROVIDER_NAMES: Record<string, string> = { groq: "Groq", gemini: "Gemini" };
+
 /** Safety net in case a model still sends markdown: show clean plain text. */
 function plainText(text: string): string {
   return text
@@ -152,7 +155,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)] [overflow-wrap:anywhere]">{m.content}</p>
                 {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
               </div>
-              {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {m.provider}</p> : null}
+              {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {PROVIDER_NAMES[m.provider] ?? m.provider}</p> : null}
             </div>
           ),
         )}
