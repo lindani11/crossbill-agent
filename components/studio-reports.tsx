@@ -43,18 +43,45 @@ function fields(currency: string) {
   return { paid: `paid_${c}`, rate: `usd_${c}_rate` };
 }
 
-// Starting report: every payment with its local-currency value.
-// To ship a richer report: build it in Edit mode, copy the state logged to the
-// browser console ("[ag-studio] report state"), and paste it here.
-function defaultReport(currency: string) {
+const title = (text: string) => ({ format: { title: { text, enabled: true } } });
+
+// Starting report: totals, local currency received per month and per client,
+// and every payment with its rate. To change it: build it in Edit mode, copy
+// the state logged to the browser console ("[ag-studio] report state"), and
+// paste it here.
+function defaultReport(currency: string, localWord: string) {
   const f = fields(currency);
+  const paidLocal = { id: `payments.${f.paid}`, aggregation: "sum" };
   return {
     pages: [
       {
         id: "page-1",
         widgets: {
-          "1": {
+          kpiLocal: { type: "value", ...title(`Received in ${localWord}`), dataMapping: { value: [paidLocal] } },
+          kpiUsd: {
+            type: "value",
+            ...title("Received in USD"),
+            dataMapping: { value: [{ id: "payments.paid_usd", aggregation: "sum" }] },
+          },
+          kpiDue: {
+            type: "value",
+            ...title("Outstanding (USD)"),
+            dataMapping: { value: [{ id: "invoices.due_usd", aggregation: "sum" }] },
+          },
+          byMonth: {
+            type: "column-chart-grouped",
+            ...title(`${localWord[0].toUpperCase()}${localWord.slice(1)} received per month`),
+            dataMapping: { categoryKey: [{ id: "payments.paid_month" }], valueKey: [paidLocal] },
+            sort: [{ field: { id: "payments.paid_month" }, direction: "asc" }],
+          },
+          byClient: {
+            type: "donut-chart",
+            ...title(`${localWord[0].toUpperCase()}${localWord.slice(1)} received per client`),
+            dataMapping: { categoryKey: [{ id: "payments.client" }], valueKey: [paidLocal] },
+          },
+          payments: {
             type: "grid",
+            ...title("Every payment"),
             dataMapping: {
               cols: [
                 { id: "payments.paid_on" },
@@ -67,7 +94,14 @@ function defaultReport(currency: string) {
             },
           },
         },
-        widgetLayout: { "1": { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: 16 } },
+        widgetLayout: {
+          kpiLocal: { xTrack: 0, yTrack: 0, xSpan: 8, ySpan: 7 },
+          kpiUsd: { xTrack: 8, yTrack: 0, xSpan: 8, ySpan: 7 },
+          kpiDue: { xTrack: 16, yTrack: 0, xSpan: 8, ySpan: 7 },
+          byMonth: { xTrack: 0, yTrack: 7, xSpan: 12, ySpan: 17 },
+          byClient: { xTrack: 12, yTrack: 7, xSpan: 12, ySpan: 17 },
+          payments: { xTrack: 0, yTrack: 24, xSpan: 24, ySpan: 14 },
+        },
       },
     ],
     selectedPageId: "page-1",
@@ -82,7 +116,8 @@ function defaultReport(currency: string) {
  */
 export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; currency: string }) {
   const [mode, setMode] = useState<"view" | "edit">("view");
-  const storageKey = `crossbill.studio.report.${currency}`;
+  // v2: reports saved before the ready-made charts existed no longer hide them.
+  const storageKey = `crossbill.studio.report.v2.${currency}`;
   const localWord = currency === "ZAR" ? "rand" : currency;
 
   const data = useMemo(() => {
@@ -123,8 +158,8 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
     } catch {
       // Storage blocked or bad JSON: use the default report.
     }
-    return defaultReport(currency);
-  }, [storageKey, currency]);
+    return defaultReport(currency, localWord);
+  }, [storageKey, currency, localWord]);
 
   return (
     <section className="mt-4 flex flex-col gap-3">
@@ -132,7 +167,7 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
         <div>
           <h2 className="on-canvas text-lg font-black">Reports</h2>
           <p className="on-canvas-muted text-xs">
-            Built with AG Studio. Tap Edit report to add KPIs and charts, such as {localWord} received per month.
+            Built with AG Studio. Tap Edit report to change any chart or add your own.
           </p>
         </div>
         <div className="flex gap-2">
@@ -161,6 +196,9 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
         <AgStudio
           data={data}
           mode={mode}
+          // No filters panel while viewing: it would only say "No filters available"
+          // and covers most of the report on a phone. It stays in Edit mode.
+          panels={{ view: { right: [] }, edit: { right: ["filters", "edit", "data"] } }}
           initialState={initialState as never}
           onStateUpdated={(e: { durable?: boolean; state?: unknown }) => {
             if (!e?.durable) return;
