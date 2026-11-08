@@ -35,6 +35,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Every visit or refresh opens at the top: the intro, the examples and the input.
   useEffect(() => {
@@ -46,6 +47,16 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
       history.scrollRestoration = previous;
     };
   }, []);
+
+  // The input grows with its text, line by line, up to about 8 lines; then it scrolls.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const borders = el.offsetHeight - el.clientHeight;
+    const max = 8 * 24 + 24 + borders; // 8 lines of 24px + padding + borders
+    el.style.height = `${Math.min(el.scrollHeight + borders, max)}px`;
+  }, [input]);
 
   // Follow the conversation only once it has started.
   useEffect(() => {
@@ -147,14 +158,24 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
           e.preventDefault();
           send(input);
         }}
-        className="sticky bottom-0 -mx-2 flex gap-2 rounded-t-2xl bg-[rgb(35_20_10/0.6)] px-2 pt-3 pb-2"
+        className="sticky bottom-0 -mx-2 flex items-end gap-2 rounded-t-2xl bg-[rgb(35_20_10/0.6)] px-2 pt-3 pb-2"
       >
         <div className="relative min-w-0 flex-1">
-          <input
+          <textarea
+            ref={inputRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter adds a line; Ctrl+Enter (Cmd+Enter on a Mac) sends.
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
             aria-label={PLACEHOLDER}
-            className="ff-input w-full text-sm"
+            aria-keyshortcuts="Control+Enter Meta+Enter"
+            className="ff-input block w-full resize-none overflow-y-auto text-sm leading-6"
           />
           {/* Placeholder that scrolls sideways on narrow screens so it can be read in full. */}
           {input ? null : (
