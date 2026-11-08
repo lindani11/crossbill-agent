@@ -6,7 +6,8 @@ import { z } from "zod";
 import { getLedger, paymentsIn, totals, type LedgerPayment } from "./ledger";
 import { buildStatement } from "./statement";
 import { localCurrency } from "./fx";
-import { checkRecipient } from "./recipients";
+import { checkRecipient, exampleRecipients } from "./recipients";
+import { buildExamples, type Example } from "./examples";
 import { currencyName, currentSaTaxYearEnd, formatMoney, isIsoDate, saTaxYear, type Period } from "./money";
 import {
   PAYMENT_TERMS,
@@ -43,6 +44,18 @@ What you can do:
 - Report earnings: call earnings for totals received in a period, in USD and ${cur}.
 - Income statement for tax: call income_statement for a tax year or any period. It gives totals and monthly figures; the full statement with a CSV download is on the Statement page.
 - Draft a payment reminder for an unpaid invoice: call list_invoices to find its id, then call propose_reminder. The freelancer approves before it is sent.
+- Show the three example prompts as tappable buttons: call show_examples.
+
+How to reply to anything:
+- Be concise, polite and precise: usually one to three short sentences. Answer what was asked first.
+- Greetings and "who are you?" or "what can you do?": say in one or two sentences that you are Crossbill, an AI agent that drafts PayPal invoices for the freelancer to approve, chases late payers, and keeps their books in ${cur} at each payment day's exchange rate. Then ask what they would like to do and call show_examples.
+- Vague requests ("help", "invoice someone", "what now?"): say in one sentence what you can do, ask the one question that would get them started, and call show_examples.
+- Requests outside invoicing, payments, earnings or their books: say politely in one sentence that it is outside what you do, offer what you can do instead, and call show_examples. Do not answer the unrelated question.
+- Missing invoice details: ask only for what is missing, all in one short message (client name, client email, the work, quantity and price). Never guess.
+- Unclear which client, invoice or period is meant: ask one short question, offering the likely options from a tool result when you have them.
+- If a tool fails or returns an error, say plainly what went wrong and the next step (try again, check the email address, refresh later). Never say something worked when it did not.
+- Never invent invoices, clients, emails, amounts, dates or rates. If you do not know, say so and offer to look it up.
+- To show the examples you must call the show_examples tool. Never type "[Show examples]", a tool name or a description of buttons in your reply; the buttons appear under it on their own. Do not write the examples out either. Do not call show_examples after drafting an invoice or reminder, or after answering a question about figures.
 
 Rules:
 - Invoices are in USD. Convert phrases like "3 days at $250 a day" into quantity 3, unit_amount 250.
@@ -93,8 +106,18 @@ function paymentText(p: LedgerPayment, currency: string) {
   };
 }
 
-function buildTools(proposals: Proposal[]) {
+function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
   return {
+    show_examples: tool({
+      description:
+        "Show the three example prompts (tutor, developer, translator) as tappable buttons under your reply. Use after greetings, \"who are you\", vague or off-topic messages.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        ui.examples = true;
+        return { ok: true, shown: "three example prompts as buttons under your reply" };
+      },
+    }),
+
     propose_invoice: tool({
       description:
         "Propose a USD invoice for the freelancer to review. Does NOT send anything; the freelancer must approve it.",
@@ -297,7 +320,7 @@ function providers(): { name: string; model: LanguageModel }[] {
   return list;
 }
 
-export type AgentResult = { text: string; proposals: Proposal[]; provider: string };
+export type AgentResult = { text: string; proposals: Proposal[]; suggestions?: Example[]; provider: string };
 
 // Longest wait worth taking before retrying a rate-limited provider. Longer
 // waits go straight to the backup instead (the chat route allows 60 s in all).
@@ -319,6 +342,18 @@ function shortRateLimitWait(err: unknown): number | null {
   return ms <= MAX_RATE_LIMIT_WAIT_MS ? ms : null;
 }
 
+/** "[Show examples]", "show_examples()" and similar, typed by a model instead of calling the tool. */
+const EXAMPLES_PLACEHOLDER = /\[\s*show[\s_-]*examples?\s*\]|\bshow_examples\b(\s*\(\s*\))?/i;
+
+/** Greetings and "who are you / what can you do / help" messages. */
+const GETTING_STARTED =
+  /^\s*(hi|hello|hey|hiya|howzit|sawubona|molo|dumela|good\s+(morning|afternoon|evening)|who\s+are\s+you|what\s+(can|do)\s+you\s+do|what\s+is\s+crossbill|help|start|get\s+started)\b[\s\S]{0,40}$/i;
+
+function lastUserText(messages: ModelMessage[]): string {
+  const last = [...messages].reverse().find((m) => m.role === "user");
+  return typeof last?.content === "string" ? last.content : "";
+}
+
 /**
  * Runs the agent on the main model and falls back to the backup model if the
  * main one fails (for example when the free daily quota is used up).
@@ -336,21 +371,34 @@ export async function runAgent(messages: ModelMessage[]): Promise<AgentResult> {
     // limit says "try again in 4s"): waiting a few seconds beats a busy backup.
     for (let attempt = 0; attempt < 2; attempt++) {
       const proposals: Proposal[] = [];
+      const ui = { examples: false };
       try {
         const result = await generateText({
           model,
           system: systemPrompt(),
           messages,
-          tools: buildTools(proposals),
+          tools: buildTools(proposals, ui),
           stopWhen: stepCountIs(5),
           // Don't retry a provider that has a backup: switching is faster.
           maxRetries: isLast ? 1 : 0,
           temperature: 0.2,
         });
-        const text =
-          result.text.trim() ||
-          (proposals.length > 0 ? "Here's the draft. Review it and tap Approve to send." : "Done.");
-        return { text, proposals, provider: name };
+        let text = result.text.trim();
+        // Never leave the freelancer with an empty reply and nothing to do next.
+        if (!text && proposals.length > 0) text = "Here's the draft. Review it and tap Approve to send.";
+        if (!text) {
+          text = "I can draft PayPal invoices for you to approve, chase late payers and show what you've earned. What would you like to do?";
+          ui.examples = true;
+        }
+        // Backstop for models that type the tool instead of calling it ("[Show examples]").
+        if (EXAMPLES_PLACEHOLDER.test(text)) {
+          text = text.replace(new RegExp(EXAMPLES_PLACEHOLDER.source, "gi"), "").replace(/\n{3,}/g, "\n\n").trim();
+          ui.examples = true;
+        }
+        // A greeting or "what can you do?" always gets the example buttons.
+        if (proposals.length === 0 && GETTING_STARTED.test(lastUserText(messages))) ui.examples = true;
+        const suggestions = ui.examples && proposals.length === 0 ? buildExamples(exampleRecipients()) : undefined;
+        return { text, proposals, suggestions, provider: name };
       } catch (err) {
         lastError = err;
         const wait = attempt === 0 ? shortRateLimitWait(err) : null;

@@ -72,7 +72,7 @@ flowchart LR
   L --> T[Tax statement: PDF and CSV]
 ```
 
-1. The agent has five tools: `propose_invoice`, `list_invoices`, `earnings`, `income_statement` and `propose_reminder`. It can **read** from PayPal and **propose** actions, but it cannot send anything.
+1. The agent has six tools: `propose_invoice`, `list_invoices`, `earnings`, `income_statement`, `propose_reminder` and `show_examples`. It can **read** from PayPal and **propose** actions, but it cannot send anything. For a greeting, a vague request or something outside its job, it answers in a sentence or two, asks what you need, and shows the example prompts as buttons.
 2. Sending happens in separate routes (`/api/invoices/send`, `/api/invoices/remind`) that run only when you tap Approve. The approval step is enforced in code, not just in the prompt.
 3. When a client pays, PayPal calls `/api/paypal/webhook`. Crossbill asks PayPal to verify the signature, re-reads the invoice from PayPal for the authoritative amount, and converts it at that day's rate.
 4. The books (`lib/ledger.ts`) are rebuilt live from PayPal on every request: no database to drift out of sync or pause. Each payment gets the rate for its own date; past rates are cached.
@@ -144,7 +144,8 @@ Open http://localhost:3000.
 
 | Path | What it does |
 | --- | --- |
-| `lib/agent.ts` | AI agent: system prompt, five tools, provider fallback |
+| `lib/agent.ts` | AI agent: system prompt, six tools, provider fallback |
+| `lib/examples.ts` | The example prompts, shared by the chat and the agent |
 | `lib/paypal.ts` | PayPal REST client: invoicing and webhook verification |
 | `lib/recipients.ts` | Sandbox allowlist: which test client emails may receive invoices |
 | `lib/ledger.ts` | Books built live from PayPal: amounts due, every payment, its rate and local value, overdue days |

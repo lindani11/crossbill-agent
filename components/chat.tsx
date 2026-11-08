@@ -1,44 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import ProposalCard from "./proposal-card";
 import type { Proposal } from "@/lib/schemas";
+import { buildExamples, type Example } from "@/lib/examples";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
   proposals?: Proposal[];
+  suggestions?: Example[];
   provider?: string;
 };
 
 const PLACEHOLDER = "Describe the job to invoice, or ask who owes you…";
-
-// One example per kind of freelancer, to show Crossbill works for any field.
-// Each is addressed to its own PayPal sandbox test client, so every example can
-// be sent and paid end to end. If that client is not in SANDBOX_TEST_EMAILS,
-// another listed test client is used instead.
-const EXAMPLES: { who: string; email: string; text: (email: string) => string }[] = [
-  {
-    who: "Tutor",
-    email: "angelina@personal.example.com",
-    text: (e) => `Invoice Angelina (${e}) for 8 online maths lessons at $20 each in October`,
-  },
-  {
-    who: "Developer",
-    email: "jacksmith@personal.example.com",
-    text: (e) => `Invoice Jack Smith (${e}) for 3 days of Next.js work at $250 a day plus $120 for hosting setup`,
-  },
-  {
-    who: "Translator",
-    email: "ngwenyaholdings@personal.example.com",
-    text: (e) => `Invoice Ngwenya Holdings (${e}) for translating 4,500 words from English to isiZulu at $0.08 a word`,
-  },
-];
-
-function exampleEmail(own: string, index: number, testEmails: string[]): string {
-  if (testEmails.length === 0 || testEmails.includes(own)) return own;
-  return testEmails[index % testEmails.length];
-}
 
 /** How each AI provider is named under a reply. */
 const PROVIDER_NAMES: Record<string, string> = { groq: "Groq", gemini: "Gemini" };
@@ -54,10 +29,7 @@ function plainText(text: string): string {
 }
 
 export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
-  const examples = EXAMPLES.map((ex, i) => ({
-    who: ex.who,
-    text: ex.text(exampleEmail(ex.email, i, testEmails)),
-  }));
+  const examples = buildExamples(testEmails);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -100,7 +72,13 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
       if (!res.ok) throw new Error(json.error ?? "Something went wrong");
       setMessages([
         ...next,
-        { role: "assistant", content: plainText(json.text), proposals: json.proposals, provider: json.provider },
+        {
+          role: "assistant",
+          content: plainText(json.text),
+          proposals: json.proposals,
+          suggestions: json.suggestions,
+          provider: json.provider,
+        },
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -124,20 +102,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
             </div>
             <div className="ff-panel-strong rounded-2xl p-4 sm:p-5">
               <p className="ff-eyebrow">Works for any freelancer · try one below</p>
-              <div className="ff-options mt-3 flex flex-col gap-2">
-                {examples.map((ex) => (
-                  <button
-                    key={ex.text}
-                    onClick={() => send(ex.text)}
-                    className="ff-option rounded-xl px-4 py-3 text-left text-sm text-[var(--ink)] [overflow-wrap:anywhere]"
-                  >
-                    <span className="mb-0.5 block text-[11px] font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
-                      {ex.who}
-                    </span>
-                    {ex.text}
-                  </button>
-                ))}
-              </div>
+              <ExampleList examples={examples} onPick={send} />
             </div>
           </>
         ) : null}
@@ -154,6 +119,9 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
               <div className="ff-panel rounded-2xl rounded-bl-sm px-4 py-3">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)] [overflow-wrap:anywhere]">{m.content}</p>
                 {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
+                {m.suggestions?.length ? (
+                  <ExampleDropdown examples={m.suggestions} onPick={send} disabled={loading} />
+                ) : null}
               </div>
               {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {PROVIDER_NAMES[m.provider] ?? m.provider}</p> : null}
             </div>
@@ -207,6 +175,80 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
           Send
         </button>
       </form>
+    </div>
+  );
+}
+
+/** Example prompts as tappable cards; tapping one sends it. */
+function ExampleList({
+  examples,
+  onPick,
+  disabled = false,
+}: {
+  examples: Example[];
+  onPick: (text: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="ff-options mt-3 flex flex-col gap-2">
+      {examples.map((ex) => (
+        <button
+          key={ex.text}
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(ex.text)}
+          className="ff-option rounded-xl px-4 py-3 text-left text-sm text-[var(--ink)] [overflow-wrap:anywhere] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="mb-0.5 block text-[11px] font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
+            {ex.who}
+          </span>
+          {ex.text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Examples inside a reply: closed by default, they slide open from a small button. */
+function ExampleDropdown({
+  examples,
+  onPick,
+  disabled,
+}: {
+  examples: Example[];
+  onPick: (text: string) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((o) => !o)}
+        className="ff-btn ff-btn-secondary ff-btn-sm"
+      >
+        {open ? "Hide examples" : `Try an example (${examples.length})`}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 16 16"
+          className={`ff-chevron h-3.5 w-3.5${open ? " ff-chevron-open" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 6l4 4 4-4" />
+        </svg>
+      </button>
+      <div id={id} className="ff-collapse" data-open={open} inert={!open}>
+        <div className="ff-collapse-inner">
+          <ExampleList examples={examples} onPick={onPick} disabled={disabled} />
+        </div>
+      </div>
     </div>
   );
 }

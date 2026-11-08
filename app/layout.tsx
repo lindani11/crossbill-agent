@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SiteFooter from "@/components/site-footer";
 import Splash from "@/components/splash";
+import ServiceWorker from "@/components/service-worker";
 
 export const metadata: Metadata = {
   title: "Crossbill",
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#111827",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="flex min-h-dvh flex-col">
         <Splash />
+        <ServiceWorker />
         {children}
         <SiteFooter />
       </body>
