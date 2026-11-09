@@ -4,6 +4,20 @@ import { useRef, useState } from "react";
 import type { Proposal } from "@/lib/schemas";
 import { describeQuantity, formatMoney } from "@/lib/money";
 
+/**
+ * components/proposal-card.tsx · A draft invoice or reminder, waiting for approval
+ *
+ * This card is the human-in-the-loop step: nothing reaches PayPal until the
+ * freelancer taps Approve & send.
+ *
+ *   Approve & send → POST /api/invoices/send   (the invoice and its requestId)
+ *                  → POST /api/invoices/remind (the reminder)
+ *     ← sent: the invoice number, its status and the client's payment page
+ *     ← error: the message, and the button turns into "Try again"
+ *   Discard → nothing is sent
+ */
+
+// The card's states. Each member of the union carries only its own data.
 type SendState =
   | { status: "idle" }
   | { status: "sending" }
@@ -11,6 +25,7 @@ type SendState =
   | { status: "error"; message: string }
   | { status: "discarded" };
 
+// PayPal's term codes in plain words.
 const TERM_LABEL: Record<string, string> = {
   DUE_ON_RECEIPT: "Due on receipt",
   NET_10: "Due in 10 days",
@@ -20,8 +35,8 @@ const TERM_LABEL: Record<string, string> = {
 
 export default function ProposalCard({ proposal }: { proposal: Proposal }) {
   const [state, setState] = useState<SendState>({ status: "idle" });
-  // One id per card: retries and double taps reuse it, so PayPal never
-  // creates the same invoice twice.
+  // One id per card, kept by useRef across re-renders: retries and double taps
+  // reuse it, so PayPal never creates the same invoice twice.
   const requestId = useRef<string>(crypto.randomUUID());
 
   async function approve() {
@@ -56,6 +71,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
     }
   }
 
+  // While sending, both buttons are disabled: a second guard against double taps.
   const busy = state.status === "sending";
   const done = state.status === "sent" || state.status === "discarded";
 
@@ -109,8 +125,9 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
         <p role="status" className="mt-3 rounded-xl border border-[var(--success)] bg-[rgb(236_253_245)] px-3 py-2 text-sm font-semibold text-[var(--success)]">
           {state.detail}{" "}
           {state.link ? (
-            <a href={state.link} target="_blank" rel="noreferrer" className="font-extrabold text-[var(--accent-strong)] underline underline-offset-2">
+            <a href={state.link} target="_blank" rel="noopener noreferrer" className="font-extrabold text-[var(--accent-strong)] underline underline-offset-2">
               Open the client&apos;s payment page
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
           ) : null}
         </p>

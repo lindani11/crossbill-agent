@@ -5,6 +5,18 @@ import { invoiceProposalSchema } from "@/lib/schemas";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { checkRecipient } from "@/lib/recipients";
 
+/**
+ * POST /api/invoices/send · Creates a PayPal invoice and sends it
+ *
+ * Runs only when the freelancer taps Approve & send on an invoice card:
+ *   card → rate limit (10 per 10 min) → zod check → sandbox allowlist
+ *        → lib/paypal.ts createAndSendInvoice() → { invoice, payerUrl }
+ *
+ * The browser sends the whole proposal back, so it is checked again here as if
+ * it were new: nothing that comes from the browser is trusted.
+ */
+
+// Node.js runtime: the PayPal client uses Node's Buffer.
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
@@ -37,6 +49,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[invoices/send]", err);
     const message = err instanceof PayPalError ? err.message : "Could not send the invoice.";
+    // PayPal refused our input (4xx) → 400; PayPal or the network failed → 502.
     const status = err instanceof PayPalError && err.status < 500 ? 400 : 502;
     return NextResponse.json({ error: message }, { status });
   }

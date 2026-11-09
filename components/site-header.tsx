@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { CrossbillMark } from "./logo";
 
+/**
+ * components/site-header.tsx · The top bar: skip link, logo and the three tabs
+ *
+ * A Server Component (no "use client"): plain links, no JavaScript needed.
+ * aria-current="page" marks the active tab for screen readers, and styles it.
+ */
+
 type Tab = "chat" | "dashboard" | "statement";
 
 export default function SiteHeader({ active }: { active: Tab }) {
+  // One tab; the active one gets aria-current and an arrow.
   const tab = (href: string, label: string, on: boolean) => (
     <Link href={href} aria-current={on ? "page" : undefined} className="ff-tab">
       {label}
@@ -13,6 +21,7 @@ export default function SiteHeader({ active }: { active: Tab }) {
 
   return (
     <>
+      {/* The first thing a keyboard user reaches: jumps past the header to <main id="main">. */}
       <a href="#main" className="ff-skip">
         Skip to content
       </a>

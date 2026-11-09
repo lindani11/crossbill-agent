@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import SiteHeader from "@/components/site-header";
 import Receivables from "@/components/receivables";
 
+/**
+ * app/dashboard/page.tsx · "/dashboard", receivables and reports
+ *
+ *   <SiteHeader> → heading → <Receivables> (components/receivables.tsx)
+ *     → GET /api/ledger → AG Grid table and AG Studio report
+ */
+
 export const metadata: Metadata = { title: "Dashboard · Crossbill" };
 
 export default function DashboardPage() {

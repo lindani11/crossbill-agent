@@ -3,6 +3,16 @@ import SiteHeader from "@/components/site-header";
 import StatementView from "@/components/statement-view";
 import { isIsoDate } from "@/lib/money";
 
+/**
+ * app/statement/page.tsx · "/statement", the tax-ready income statement
+ *
+ * Reads ?from=&to= on the server and passes them on only if both are real
+ * dates in order; otherwise the statement opens on this tax year.
+ *
+ *   <SiteHeader> → <StatementView> (components/statement-view.tsx)
+ *     → GET /api/statement → tables, plus PDF and CSV downloads
+ */
+
 export const metadata: Metadata = { title: "Income statement · Crossbill" };
 
 export default async function StatementPage({
@@ -10,6 +20,7 @@ export default async function StatementPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  // Since Next.js 15, searchParams is a Promise.
   const { from, to } = await searchParams;
   const valid = isIsoDate(from) && isIsoDate(to) && from <= to;
   return (

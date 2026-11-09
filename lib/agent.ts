@@ -19,12 +19,36 @@ import {
 } from "./schemas";
 
 /**
- * The agent can READ from PayPal and PROPOSE actions. It cannot send
- * anything: invoices and reminders only go out when the freelancer taps
- * Approve, which calls a separate route. The approval step is enforced in
- * code, not just in the prompt.
+ * lib/agent.ts · The AI agent: instructions, six tools, model fallback
+ *
+ * The agent can READ from PayPal and PROPOSE actions. It cannot send anything:
+ * invoices and reminders go out only when the freelancer taps Approve, which
+ * calls a separate route. The approval step is enforced in code (the model has
+ * no tool that sends), not just asked for in the prompt.
+ *
+ * How it connects
+ *   app/api/chat → runAgent(messages)
+ *     → generateText() (Vercel AI SDK) on Groq gpt-oss-120b, else Gemini
+ *       → tools: show_examples, propose_invoice, list_invoices, earnings,
+ *                income_statement, propose_reminder
+ *         → lib/ledger.ts and lib/statement.ts (read), lib/recipients.ts (check)
+ *     ← { text, proposals, suggestions, provider } → cards in the chat
+ *
+ * Key ideas
+ *   1. Tool calling: the model picks a tool and fills in its schema; our code
+ *      runs it and hands back JSON. The model never talks to PayPal itself.
+ *   2. Proposals are collected, not sent. The browser shows each one as a card
+ *      with Approve & send.
+ *   3. The model never does money arithmetic: tools return ready-formatted
+ *      *_text values for it to copy.
+ *   4. Two free-tier providers: a short rate limit is waited out once, and any
+ *      other failure moves on to the backup.
  */
 
+/**
+ * The instructions sent with every request. Built on each call, so "today",
+ * the tax year and the local currency are always current.
+ */
 function systemPrompt(): string {
   const today = new Date().toISOString().slice(0, 10);
   const cur = localCurrency();
@@ -42,7 +66,7 @@ What you can do:
 - Draft an invoice: call propose_invoice. The freelancer must approve it before it is sent; never say an invoice was sent.
 - Check invoices: call list_invoices to see status, amounts, who owes what, what is overdue, and what each payment was worth in ${cur}.
 - Report earnings: call earnings for totals received in a period, in USD and ${cur}.
-- Income statement for tax: call income_statement for a tax year or any period. It gives totals and monthly figures; the full statement with a CSV download is on the Statement page.
+- Income statement for tax: call income_statement for a tax year or any period. It gives totals and monthly figures; the full statement, with PDF and CSV downloads, is on the Statement page.
 - Draft a payment reminder for an unpaid invoice: call list_invoices to find its id, then call propose_reminder. The freelancer approves before it is sent.
 - Show the three example prompts as tappable buttons: call show_examples.
 
@@ -78,10 +102,12 @@ Rules:
 - Crossbill keeps records; it does not give tax advice. For tax questions beyond the figures, suggest checking with a tax practitioner.`;
 }
 
+// A formatted amount, or null when there is none (the model sees null, not "$0.00").
 function money(value: number | null, currency: string): string | null {
   return value === null ? null : formatMoney(value, currency);
 }
 
+// Totals as ready-made text, so the model copies amounts instead of working them out.
 function totalsText(t: ReturnType<typeof totals>, currency: string) {
   return {
     outstanding_text: formatMoney(t.outstanding_usd, "USD"),
@@ -94,6 +120,7 @@ function totalsText(t: ReturnType<typeof totals>, currency: string) {
   };
 }
 
+// One payment as the model sees it: amounts already formatted, plus the rate and its date.
 function paymentText(p: LedgerPayment, currency: string) {
   return {
     invoice_number: p.invoice_number,
@@ -106,8 +133,14 @@ function paymentText(p: LedgerPayment, currency: string) {
   };
 }
 
+/**
+ * The agent's six tools. `proposals` and `ui` are filled in while the model
+ * runs and go back with the reply: proposals become Approve cards, and
+ * ui.examples shows the example buttons. No tool sends anything.
+ */
 function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
   return {
+    // Asks for the example buttons under the reply; the reply text stays clean.
     show_examples: tool({
       description:
         "Show the three example prompts (tutor, developer, translator) as tappable buttons under your reply. Use after greetings, \"who are you\", vague or off-topic messages.",
@@ -118,6 +151,8 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
       },
     }),
 
+    // Drafts an invoice. inputSchema is what the model fills in; its .describe()
+    // texts tell the model what each field means.
     propose_invoice: tool({
       description:
         "Propose a USD invoice for the freelancer to review. Does NOT send anything; the freelancer must approve it.",
@@ -145,6 +180,8 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
           .describe("When payment is due. Omit to use the default."),
       }),
       execute: async (input) => {
+        // The strict limits (lib/schemas.ts) are checked here, so a bad value goes
+        // back to the model as a plain error it can act on.
         const parsed = invoiceProposalSchema.safeParse(input);
         if (!parsed.success) {
           return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
@@ -152,12 +189,16 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
         // No card for an address that could never receive it (sandbox test clients only).
         const recipient = checkRecipient(parsed.data.client_email);
         if (!recipient.ok) return { ok: false, error: recipient.error };
+        // The total is worked out in code, in whole cents, never by the model.
         const total = invoiceTotal(parsed.data.items);
+        // Queued for an approval card. Nothing has been sent.
         proposals.push({ kind: "invoice", total, data: parsed.data });
         return { ok: true, status: "awaiting_approval", total_usd: total };
       },
     }),
 
+    // Read-only: up to 30 invoices with ready-formatted amounts. A smaller page
+    // keeps the tool result, and so the model's input, short.
     list_invoices: tool({
       description:
         "List the freelancer's PayPal invoices: status (SENT, PAID, PARTIALLY_PAID, CANCELLED...), client, total and amount due in USD, days overdue, and for paid invoices the payment date and the local-currency value at that day's exchange rate.",
@@ -194,6 +235,7 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
       },
     }),
 
+    // Read-only: money received in a date range, and what is still outstanding.
     earnings: tool({
       description:
         "Total money received in a date range, in USD and in the freelancer's local currency at each payment day's exchange rate, plus what is still outstanding. Use for questions like 'what did I earn in October?' or 'how much this year?'.",
@@ -204,6 +246,7 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
       execute: async ({ from, to }) => {
         try {
           const { currency, rows } = await getLedger(50);
+          // Dates from the model are checked; anything else means "no limit".
           const f = isIsoDate(from) ? from : undefined;
           const tt = isIsoDate(to) ? to : undefined;
           return {
@@ -221,9 +264,10 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
       },
     }),
 
+    // Read-only: the same statement as the Statement page, summed up by month.
     income_statement: tool({
       description:
-        "Income statement for tax: every payment in a period converted at its payment-day exchange rate, with monthly totals. For South Africa the default period is the current tax year (1 March to end of February). The full statement, with a CSV download and print view, is on the Statement page.",
+        "Income statement for tax: every payment in a period converted at its payment-day exchange rate, with monthly totals. For South Africa the default period is the current tax year (1 March to end of February). The full statement, with PDF and CSV downloads, is on the Statement page.",
       inputSchema: z.object({
         tax_year_end: z
           .number()
@@ -236,6 +280,8 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
       execute: async ({ tax_year_end, from, to }) => {
         try {
           const cur = localCurrency();
+          // The period: explicit dates, else a tax year by the year it ends, else the
+          // current tax year (rand) or calendar year (other currencies).
           let period: Period;
           if (isIsoDate(from) && isIsoDate(to) && from <= to) {
             period = { from, to, label: `${from} to ${to}` };
@@ -272,6 +318,8 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
       },
     }),
 
+    // Drafts a reminder. The recipient is checked on approval, when the remind
+    // route reads the invoice's client email from PayPal.
     propose_reminder: tool({
       description:
         "Propose a payment reminder for an unpaid, already-sent invoice. Does NOT send anything; the freelancer must approve it.",
@@ -296,7 +344,8 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
 
 /**
  * Providers in the order to try them. AI_PROVIDER_ORDER sets the order
- * (default "groq,gemini"); providers without an API key are skipped.
+ * (default "groq,gemini"); providers without an API key are skipped. Model
+ * names come from env vars, so a retired model is swapped without new code.
  */
 function providers(): { name: string; model: LanguageModel }[] {
   const make: Record<string, () => LanguageModel | null> = {
@@ -320,6 +369,7 @@ function providers(): { name: string; model: LanguageModel }[] {
   return list;
 }
 
+// What the chat route sends back to the browser.
 type AgentResult = { text: string; proposals: Proposal[]; suggestions?: Example[]; provider: string };
 
 // Longest wait worth taking before retrying a rate-limited provider. Longer
@@ -338,6 +388,7 @@ function shortRateLimitWait(err: unknown): number | null {
   const hint = /try again in ([\d.]+)s/i.exec(err.message);
   if (hint) seconds = Math.max(seconds ?? 0, Number(hint[1]));
   if (seconds === null || !Number.isFinite(seconds)) return null;
+  // Half a second of margin, so the retry lands after the limit has reset.
   const ms = Math.ceil(seconds * 1000) + 500;
   return ms <= MAX_RATE_LIMIT_WAIT_MS ? ms : null;
 }
@@ -347,10 +398,13 @@ function shortRateLimitWait(err: unknown): number | null {
  * {"tool": "functions.show_examples", "arguments": {}}, fenced or bare.
  */
 function stripToolJson(text: string): { text: string; mentionsExamples: boolean } {
+  // 1. Unwrap fenced code blocks that hold tool-call JSON, so step 2 removes it.
   let out = text.replace(/```(?:json)?\s*([\s\S]*?)```/gi, (block, inner: string) =>
     /"(tool|function|name|arguments|parameters)"\s*:/.test(inner) ? inner : block,
   );
   let mentionsExamples = false;
+  // 2. Walk each {...} block by counting braces (a regex can't match nested
+  //    braces) and drop the blocks that look like tool calls.
   for (let start = out.indexOf("{"); start !== -1; start = out.indexOf("{", start + 1)) {
     let depth = 0;
     let end = -1;
@@ -366,6 +420,7 @@ function stripToolJson(text: string): { text: string; mentionsExamples: boolean 
     if (/"(tool|function|tool_name|arguments|parameters)"\s*:/.test(candidate)) {
       if (/show_examples/.test(candidate)) mentionsExamples = true;
       out = out.slice(0, start) + out.slice(end + 1);
+      // The text after the removed block moved up: look again from here.
       start -= 1;
     }
   }
@@ -375,10 +430,15 @@ function stripToolJson(text: string): { text: string; mentionsExamples: boolean 
 /** "[Show examples]", "show_examples()" and similar, typed by a model instead of calling the tool. */
 const EXAMPLES_PLACEHOLDER = /\[\s*show[\s_-]*examples?\s*\]|\bshow_examples\b(\s*\(\s*\))?/i;
 
-/** Greetings and "who are you / what can you do / help" messages. */
+/**
+ * Greetings (including the South African "howzit", "sawubona", "molo" and
+ * "dumela") and "who are you / what can you do / help" messages, followed by
+ * at most 40 more characters.
+ */
 const GETTING_STARTED =
   /^\s*(hi|hello|hey|hiya|howzit|sawubona|molo|dumela|good\s+(morning|afternoon|evening)|who\s+are\s+you|what\s+(can|do)\s+you\s+do|what\s+is\s+crossbill|help|start|get\s+started)\b[\s\S]{0,40}$/i;
 
+// The newest message the freelancer typed.
 function lastUserText(messages: ModelMessage[]): string {
   const last = [...messages].reverse().find((m) => m.role === "user");
   return typeof last?.content === "string" ? last.content : "";
@@ -395,14 +455,18 @@ export async function runAgent(messages: ModelMessage[]): Promise<AgentResult> {
   }
 
   let lastError: unknown;
+  // Try each provider in order, and return the first good answer.
   for (const [index, { name, model }] of available.entries()) {
     const isLast = index === available.length - 1;
     // One extra try after a short rate-limit wait (e.g. Groq's tokens-per-minute
     // limit says "try again in 4s"): waiting a few seconds beats a busy backup.
     for (let attempt = 0; attempt < 2; attempt++) {
+      // Fresh for every attempt, so a failed attempt leaves nothing behind.
       const proposals: Proposal[] = [];
       const ui = { examples: false };
       try {
+        // The agent loop: the model may call tools, read their results and call
+        // more, for up to 5 steps, before it writes its reply.
         const result = await generateText({
           model,
           system: systemPrompt(),
@@ -411,30 +475,34 @@ export async function runAgent(messages: ModelMessage[]): Promise<AgentResult> {
           stopWhen: stepCountIs(5),
           // Don't retry a provider that has a backup: switching is faster.
           maxRetries: isLast ? 1 : 0,
+          // Low temperature: steady, predictable wording for money matters.
           temperature: 0.2,
         });
-        let text = result.text.trim();
-        // Never leave the freelancer with an empty reply and nothing to do next.
+        // Backstop for models that write a tool call as text instead of making
+        // it: drop tool-call JSON, and a typed "[Show examples]".
+        const cleaned = stripToolJson(result.text);
+        let text = cleaned.text;
+        if (cleaned.mentionsExamples) ui.examples = true;
+        if (EXAMPLES_PLACEHOLDER.test(text)) {
+          text = text.replace(new RegExp(EXAMPLES_PLACEHOLDER.source, "gi"), "").replace(/\n{3,}/g, "\n\n").trim();
+          ui.examples = true;
+        }
+        // Never leave the freelancer with an empty reply and nothing to do next
+        // (checked after the clean-up, which can leave nothing at all).
         if (!text && proposals.length > 0) text = "Here's the draft. Review it and tap Approve to send.";
         if (!text) {
           text = "I can draft PayPal invoices for you to approve, chase late payers and show what you've earned. What would you like to do?";
           ui.examples = true;
         }
-        // Backstop for models that write a tool call as text (JSON or "[Show examples]").
-        const cleaned = stripToolJson(text);
-        if (cleaned.mentionsExamples) ui.examples = true;
-        text = cleaned.text;
-        // Backstop for models that type the tool instead of calling it ("[Show examples]").
-        if (EXAMPLES_PLACEHOLDER.test(text)) {
-          text = text.replace(new RegExp(EXAMPLES_PLACEHOLDER.source, "gi"), "").replace(/\n{3,}/g, "\n\n").trim();
-          ui.examples = true;
-        }
         // A greeting or "what can you do?" always gets the example buttons.
         if (proposals.length === 0 && GETTING_STARTED.test(lastUserText(messages))) ui.examples = true;
+        // Never examples under a draft: one clear next step at a time.
         const suggestions = ui.examples && proposals.length === 0 ? buildExamples(exampleRecipients()) : undefined;
         return { text, proposals, suggestions, provider: name };
       } catch (err) {
         lastError = err;
+        // A short rate limit gets one retry on the same provider; anything else
+        // moves on to the next provider.
         const wait = attempt === 0 ? shortRateLimitWait(err) : null;
         if (wait !== null) {
           console.warn(`[agent] ${name} rate-limited, retrying in ${wait} ms`);
@@ -446,5 +514,6 @@ export async function runAgent(messages: ModelMessage[]): Promise<AgentResult> {
       }
     }
   }
+  // Every provider failed: the chat route turns this into a friendly 502.
   throw lastError instanceof Error ? lastError : new Error("All AI providers failed");
 }

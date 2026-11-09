@@ -1,5 +1,13 @@
 import { CrossbillMark } from "./logo";
 
+/**
+ * components/site-footer.tsx · The footer: tagline, sandbox note and demo video
+ *
+ * A Server Component. The video link opens YouTube in a new tab: rel="noopener
+ * noreferrer" stops that tab from reaching back into this one, and the hidden
+ * text tells screen-reader users that a new tab opens.
+ */
+
 export default function SiteFooter() {
   return (
     <footer className="no-print mt-auto border-t-2 border-[var(--accent-strong)] bg-[#111827] text-[var(--accent-hover)]">

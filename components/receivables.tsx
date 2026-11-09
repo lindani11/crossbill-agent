@@ -14,9 +14,23 @@ import {
 } from "ag-grid-community";
 import { formatDate, formatMoney } from "@/lib/money";
 
+/**
+ * components/receivables.tsx · The Dashboard: totals, the AG Grid table, reports
+ *
+ *   load() → GET /api/ledger → { currency, rows, totals }
+ *     totals → four tiles: outstanding, overdue, received, received in rand
+ *     rows   → AG Grid Community table, one row per invoice
+ *     rows   → <StudioReports> (AG Studio, loaded only in the browser)
+ *
+ * AG Grid gets plain data and column definitions; sorting, filtering, resizing,
+ * pinning and scrolling through rows are built in.
+ */
+
+// AG Grid is modular: register the free Community features once, before any grid renders.
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// AG Studio runs in the browser only.
+// AG Studio runs in the browser only, so its code loads on demand (ssr: false),
+// with a skeleton meanwhile. That keeps it out of the first page load.
 const StudioReports = dynamic(() => import("./studio-reports"), {
   ssr: false,
   loading: () => (
@@ -30,6 +44,7 @@ const StudioReports = dynamic(() => import("./studio-reports"), {
   ),
 });
 
+// One invoice row from /api/ledger (LedgerRow in lib/ledger.ts).
 type Row = {
   id: string;
   number: string | null;
@@ -66,11 +81,14 @@ type Totals = {
   paid_count: number;
 };
 
+// Cell formatters: the cell keeps the raw value (so sorting is numeric or by
+// date) and only displays the formatted text.
 const money = (currency: string) => (p: ValueFormatterParams) =>
   p.value === null || p.value === undefined ? "" : formatMoney(p.value as number, currency);
 const date = (p: ValueFormatterParams) => formatDate(p.value as string | null);
 
-// White panel with deep-blue edges, matching the rest of the app.
+// AG Grid's Theming API: the Quartz theme with Crossbill's colours. The CSS
+// variables come from app/globals.css, so the grid matches the rest of the app.
 const theme = themeQuartz.withParams({
   backgroundColor: "rgb(247 240 228)",
   foregroundColor: "var(--ink)",
@@ -87,6 +105,7 @@ const theme = themeQuartz.withParams({
   wrapperBorderRadius: 16,
 });
 
+// Chip colours per PayPal status; an overdue invoice overrides them (StatusChip).
 const STATUS_STYLE: Record<string, string> = {
   PAID: "bg-[var(--accent)] text-[var(--accent-ink)]",
   MARKED_AS_PAID: "bg-[var(--accent)] text-[var(--accent-ink)]",
@@ -96,6 +115,7 @@ const STATUS_STYLE: Record<string, string> = {
   CANCELLED: "text-[var(--muted)] line-through",
 };
 
+/** A custom cell renderer: the status as a coloured chip, OVERDUE once past due. */
 function StatusChip(p: ICellRendererParams<Row>) {
   const row = p.data;
   if (!row) return null;
@@ -110,6 +130,7 @@ function StatusChip(p: ICellRendererParams<Row>) {
   );
 }
 
+/** A headline number; value null means still loading (a skeleton bar). */
 function Tile({ label, value, sub, tone }: { label: string; value: string | null; sub?: string; tone?: "accent" | "danger" }) {
   const color = tone === "accent" ? "text-[var(--accent-strong)]" : tone === "danger" ? "text-[var(--danger)]" : "";
   return (
@@ -135,6 +156,7 @@ export default function Receivables() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Fetch the books; also run by the "Refresh from PayPal" button.
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -263,10 +285,12 @@ export default function Receivables() {
             autoHeaderHeight: true,
           }}
           tooltipShowDelay={300}
+          // Columns fill the width on a computer; their minWidths let a phone scroll instead.
           autoSizeStrategy={{ type: "fitGridWidth" }}
           onGridSizeChanged={(e) => e.api.sizeColumnsToFit()}
           loading={rows === null && !error}
           overlayNoRowsTemplate="No invoices yet. Create one in Chat."
+          // Stable row ids let a refresh update rows in place instead of redrawing them.
           getRowId={(p) => p.data.id}
         />
       </div>
@@ -276,6 +300,7 @@ export default function Receivables() {
         reference rates via Frankfurter).
       </p>
 
+      {/* Reports appear once there is data to report on. */}
       {rows && rows.length > 0 ? <StudioReports rows={rows} currency={currency} /> : null}
     </div>
   );

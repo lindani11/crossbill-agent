@@ -8,11 +8,16 @@ const MIN_MS = 1900;
 const MAX_MS = 7000;
 
 /**
- * Landing animation, shown on every full visit or refresh (not on in-app
- * navigation). It is part of the server HTML and animated with CSS only, so it
- * paints at once, even before the JavaScript arrives on a slow connection. It
- * stays up until the page has loaded (and the logo has drawn), then fades out.
- * If JavaScript never runs, CSS hides it after 7 seconds.
+ * components/splash.tsx · The landing animation
+ *
+ * Shown on every full visit or refresh (not on in-app navigation). It is part
+ * of the server HTML and animated with CSS only, so it paints at once, even
+ * before the JavaScript arrives on a slow connection. It stays up until the
+ * page has loaded (and the logo has drawn), then fades out. If JavaScript
+ * never runs, CSS hides it after 7 seconds.
+ *
+ *   app/layout.tsx → <Splash> → the .cb-* styles in app/globals.css
+ *   phase: "on" → (page loaded and logo drawn) → "leaving" (fade) → "gone"
  */
 export default function Splash() {
   const [phase, setPhase] = useState<"on" | "leaving" | "gone">("on");
@@ -20,6 +25,7 @@ export default function Splash() {
   useEffect(() => {
     const timers: number[] = [];
     let left = false;
+    // Fade out once, then take the overlay out of the page after the fade.
     const leave = () => {
       if (left) return;
       left = true;
@@ -29,16 +35,20 @@ export default function Splash() {
     // performance.now() counts from the start of page load, like the CSS animation.
     const afterLoad = () => timers.push(window.setTimeout(leave, Math.max(0, MIN_MS - performance.now())));
 
+    // The page may have finished loading before React ran this effect.
     if (document.readyState === "complete") afterLoad();
     else window.addEventListener("load", afterLoad, { once: true });
+    // Safety net: leave after MAX_MS even if "load" never fires.
     timers.push(window.setTimeout(leave, Math.max(0, MAX_MS - performance.now())));
 
+    // Cleanup: if the splash unmounts first, cancel the listener and the timers.
     return () => {
       window.removeEventListener("load", afterLoad);
       timers.forEach((t) => window.clearTimeout(t));
     };
   }, []);
 
+  // aria-hidden below: the splash is decoration, so screen readers skip it.
   if (phase === "gone") return null;
 
   return (
@@ -50,6 +60,7 @@ export default function Splash() {
           <ellipse cx="24" cy="32" rx="13.86" ry="16" />
           <path d="M16 45.86 H32 M10.14 40 H37.86 M8 32 H40 M10.14 24 H37.86 M16 18.14 H32" />
         </g>
+        {/* pathLength={1} lets CSS draw any path with stroke-dashoffset 1 → 0, whatever its real length. */}
         <path
           className="cb-s-draw"
           style={{ animationDelay: "0.35s" }}

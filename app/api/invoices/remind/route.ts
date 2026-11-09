@@ -4,6 +4,18 @@ import { reminderProposalSchema } from "@/lib/schemas";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { checkRecipient } from "@/lib/recipients";
 
+/**
+ * POST /api/invoices/remind · Sends a PayPal payment reminder
+ *
+ * Runs only when the freelancer taps Approve & send on a reminder card:
+ *   card → rate limit → zod check → read the invoice from PayPal
+ *        → allowlist check on its client email → lib/paypal.ts sendReminder()
+ *
+ * The email is read from PayPal, not taken from the browser, so a reminder can
+ * only go to the client the invoice was really sent to.
+ */
+
+// Node.js runtime: the PayPal client uses Node's Buffer.
 export const runtime = "nodejs";
 
 /** Called only when the freelancer taps Approve on a reminder card. */

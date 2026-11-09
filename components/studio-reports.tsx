@@ -3,6 +3,19 @@
 import { useMemo, useState } from "react";
 import { AgStudio } from "ag-studio-react";
 
+/**
+ * components/studio-reports.tsx · The AG Studio report on the Dashboard
+ *
+ *   ledger rows → two related data sources
+ *     invoices: one row per invoice (client, status, totals, amount due)
+ *     payments: one row per payment (month, USD, rate, local value)
+ *   → <AgStudio> opens on a ready-made report:
+ *     3 KPIs, rand per month (columns), rand per client (donut), payments grid
+ *   → Edit report: anyone can add KPIs, charts and pivots, kept in this browser
+ *
+ * Fields are named "<source>.<field>", e.g. "payments.paid_zar".
+ */
+
 // Without a licence key AG Studio prints a 7-line trial banner with
 // console.error, which the Next.js dev overlay counts as "7 Issues". Drop only
 // those banner lines so real errors still stand out. The trial watermark stays.
@@ -17,6 +30,7 @@ if (typeof window !== "undefined" && !(console.error as { crossbill?: boolean })
   console.error = filtered;
 }
 
+// The fields of a ledger row this report uses.
 type LedgerRow = {
   id: string;
   number: string | null;
@@ -43,6 +57,7 @@ function fields(currency: string) {
   return { paid: `paid_${c}`, rate: `usd_${c}_rate` };
 }
 
+// A widget title, in AG Studio's settings format.
 const title = (text: string) => ({ format: { title: { text, enabled: true } } });
 
 // Starting report: totals, local currency received per month and per client,
@@ -51,6 +66,7 @@ const title = (text: string) => ({ format: { title: { text, enabled: true } } })
 // paste it here.
 function defaultReport(currency: string, localWord: string) {
   const f = fields(currency);
+  // "Sum of the local value of payments": used by the first KPI and both charts.
   const paidLocal = { id: `payments.${f.paid}`, aggregation: "sum" };
   return {
     pages: [
@@ -94,6 +110,8 @@ function defaultReport(currency: string, localWord: string) {
             },
           },
         },
+        // Positions on a 24-column grid: three KPIs across the top, the two charts
+        // side by side, then the payments grid.
         widgetLayout: {
           kpiLocal: { xTrack: 0, yTrack: 0, xSpan: 8, ySpan: 7 },
           kpiUsd: { xTrack: 8, yTrack: 0, xSpan: 8, ySpan: 7 },
@@ -120,6 +138,7 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
   const storageKey = `crossbill.studio.report.v2.${currency}`;
   const localWord = currency === "ZAR" ? "rand" : currency;
 
+  // The ledger as AG Studio's two sources; rebuilt only when rows or currency change.
   const data = useMemo(() => {
     const f = fields(currency);
     const invoices = rows.map((r) => ({
@@ -174,6 +193,7 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
           <button
             onClick={() => {
               try {
+                // Forget this browser's edited report; the reload brings back the default.
                 window.localStorage.removeItem(storageKey);
               } catch {
                 // ignore
@@ -201,6 +221,7 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
           panels={{ view: { right: [] }, edit: { right: ["filters", "edit", "data"] } }}
           initialState={initialState as never}
           onStateUpdated={(e: { durable?: boolean; state?: unknown }) => {
+            // Save only the changes AG Studio marks as durable.
             if (!e?.durable) return;
             const json = JSON.stringify(e.state);
             // In development, log the report so it can be pasted into defaultReport().

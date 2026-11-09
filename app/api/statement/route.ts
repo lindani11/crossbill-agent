@@ -4,9 +4,24 @@ import { statementPdf } from "@/lib/statement-pdf";
 import { formatDate, isIsoDate, saTaxYear, type Period } from "@/lib/money";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 
+/**
+ * GET /api/statement · The income statement as JSON, CSV or PDF (read-only)
+ *
+ *   ?from=YYYY-MM-DD&to=YYYY-MM-DD   both dates, or neither for this tax year
+ *   &format=pdf → lib/statement-pdf.ts · &format=csv → statementCsv() · else JSON
+ *
+ *   components/statement-view.tsx → JSON, and the Download PDF / CSV links
+ */
+
+// Node.js runtime: the PayPal client uses Node's Buffer.
 export const runtime = "nodejs";
+// Never pre-render or cache this route: the statement must be live.
 export const dynamic = "force-dynamic";
 
+/**
+ * The period in the URL: both dates or neither (this tax year), else null for
+ * a 400. A range that is exactly a tax year keeps the tax-year label.
+ */
 function periodFrom(url: URL): Period | null {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
@@ -35,10 +50,12 @@ export async function GET(req: Request) {
     const st = await buildStatement(period);
     if (url.searchParams.get("format") === "pdf") {
       const pdf = await statementPdf(st);
+      // Copy exactly the PDF's bytes into an ArrayBuffer, a body type Response accepts.
       const body = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength) as ArrayBuffer;
       return new Response(body, {
         headers: {
           "Content-Type": "application/pdf",
+          // "attachment" makes the browser download the file rather than open it.
           "Content-Disposition": `attachment; filename="crossbill-income-${period.from}-to-${period.to}.pdf"`,
           "Cache-Control": "no-store",
         },

@@ -3,12 +3,28 @@ import { getInvoice, listInvoices, type PayPalInvoice } from "./paypal";
 import { localCurrency, usdToLocal, type FxSource } from "./fx";
 
 /**
- * The freelancer's books, built live from PayPal: every invoice with what is
- * owed, and every payment with its date and its value in the freelancer's own
- * currency at the exchange rate on the day it was paid. No database: PayPal
- * is the source of truth, so the books can't drift out of sync.
+ * lib/ledger.ts · The books, rebuilt live from PayPal on every request
+ *
+ * Turns PayPal invoices into rows (who owes what) and payments (what arrived,
+ * on which day, and its value in the freelancer's currency at that day's rate).
+ *
+ * How it connects
+ *   lib/paypal.ts listInvoices() → getLedger() → rows, each with its payments
+ *     each payment date → lib/fx.ts usdToLocal() → rate, rate date, source
+ *   getLedger() is read by
+ *     app/api/ledger   → Dashboard (AG Grid table, AG Studio report)
+ *     lib/statement.ts → Statement page, PDF and CSV
+ *     lib/agent.ts     → the list_invoices and earnings tools
+ *
+ * Key ideas
+ *   1. No database: PayPal is the single source of truth, so the books can't
+ *      drift out of sync with what clients actually paid.
+ *   2. Each PayPal transaction is its own payment, so every part-payment gets
+ *      the rate for its own day (SARS Interpretation Note 63).
+ *   3. Amounts are rounded to cents (round2) whenever they are added up.
  */
 
+/** One payment received: the unit the statement and the tax rule work with. */
 export type LedgerPayment = {
   invoice_id: string;
   invoice_number: string | null;
@@ -21,6 +37,7 @@ export type LedgerPayment = {
   amount_local: number | null;
 };
 
+/** One invoice, as the Dashboard table shows it. */
 type LedgerRow = {
   id: string;
   number: string | null;
@@ -42,24 +59,33 @@ type LedgerRow = {
 
 type Ledger = { currency: string; rows: LedgerRow[] };
 
+// Statuses where money has arrived, and where money is still owed.
+// PARTIALLY_PAID is in both: part has arrived and the rest is still due.
 const PAID_STATUSES = new Set(["PAID", "PARTIALLY_PAID", "MARKED_AS_PAID"]);
 const OPEN_STATUSES = new Set(["SENT", "UNPAID", "PARTIALLY_PAID", "SCHEDULED"]);
 
+// PayPal sends amounts as strings ("70.00"); null (not NaN) when missing.
 function num(value?: string): number | null {
   const n = value === undefined ? NaN : Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
+// Round to cents. Floating-point sums drift (0.1 + 0.2 = 0.30000000000000004),
+// so totals are rounded every time they are added up.
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// The client's display name and email, from the invoice's first recipient.
 function clientOf(inv: PayPalInvoice) {
   const r = inv.primary_recipients?.[0]?.billing_info;
   const name = r?.name?.full_name ?? [r?.name?.given_name, r?.name?.surname].filter(Boolean).join(" ");
   return { name: name || null, email: r?.email_address ?? null };
 }
 
+// Days past the due date for an invoice that is still open, else null (not 0),
+// so the table shows a blank and filter((r) => r.days_overdue) skips it.
+// Like every YYYY-MM-DD in Crossbill, the dates are compared in UTC.
 function daysOverdue(status: string, dueDate: string | null): number | null {
   if (!dueDate || !OPEN_STATUSES.has(status)) return null;
   const today = new Date().toISOString().slice(0, 10);
@@ -85,6 +111,7 @@ function paymentsOf(inv: PayPalInvoice): { paid_on: string; amount_usd: number }
   return paidUsd && lastDate ? [{ paid_on: lastDate, amount_usd: paidUsd }] : [];
 }
 
+/** One ledger row for an invoice, with its payments converted to local currency. */
 async function toRow(summary: PayPalInvoice): Promise<LedgerRow> {
   // The list endpoint can leave out payment details, so re-read paid invoices.
   let inv = summary;
@@ -99,6 +126,7 @@ async function toRow(summary: PayPalInvoice): Promise<LedgerRow> {
   const { name, email } = clientOf(inv);
   const number = inv.detail?.invoice_number ?? null;
 
+  // Convert every payment at the rate for its own date, all in parallel.
   const payments: LedgerPayment[] = await Promise.all(
     paymentsOf(inv).map(async (p) => {
       const fx = await usdToLocal(p.paid_on);
@@ -116,6 +144,8 @@ async function toRow(summary: PayPalInvoice): Promise<LedgerRow> {
     }),
   );
 
+  // Row totals. The local total only shows when every payment has a rate, so a
+  // half-converted figure is never presented as complete.
   const paidUsd = payments.length ? round2(payments.reduce((s, p) => s + p.amount_usd, 0)) : num(inv.payments?.paid_amount?.value);
   const allConverted = payments.length > 0 && payments.every((p) => p.amount_local !== null);
   const paidLocal = allConverted ? round2(payments.reduce((s, p) => s + (p.amount_local ?? 0), 0)) : null;
@@ -134,6 +164,8 @@ async function toRow(summary: PayPalInvoice): Promise<LedgerRow> {
     due_usd: num(inv.due_amount?.value),
     paid_usd: paidUsd && paidUsd > 0 ? paidUsd : null,
     paid_on: last?.paid_on ?? null,
+    // One payment: its own rate. Several: the weighted average (local ÷ USD),
+    // so the row still reconciles with its payments.
     fx_rate:
       payments.length === 1
         ? payments[0].fx_rate
@@ -147,6 +179,11 @@ async function toRow(summary: PayPalInvoice): Promise<LedgerRow> {
   };
 }
 
+/**
+ * The whole ledger: one list call, then every row built in parallel. Only one
+ * page of invoices is read (pageSize, at most 100): see "Known limitations"
+ * in docs/ARCHITECTURE.md.
+ */
 export async function getLedger(pageSize = 50): Promise<Ledger> {
   const invoices = await listInvoices(pageSize);
   const rows = await Promise.all(invoices.map(toRow));
@@ -171,7 +208,10 @@ type Totals = {
   missing_rates: number;
 };
 
-/** Totals over a ledger; paid figures can be limited to a date range. */
+/**
+ * Totals over a ledger. Paid figures can be limited to a date range;
+ * outstanding and overdue are always as of today.
+ */
 export function totals(rows: LedgerRow[], from?: string, to?: string): Totals {
   const paid = paymentsIn(rows, from, to);
   const open = rows.filter((r) => OPEN_STATUSES.has(r.status) && (r.due_usd ?? 0) > 0);

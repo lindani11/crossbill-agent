@@ -1,18 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Crossbill logo">
-  <rect width="64" height="64" rx="14" fill="#ffffff"/>
-  <g transform="translate(3.2 3.2) scale(0.9)">
-    <circle cx="24" cy="32" r="16" fill="#111827"/>
-    <g fill="none" stroke="#ffffff" stroke-width="0.8" opacity="0.6">
-      <ellipse cx="24" cy="32" rx="8" ry="16"/>
-      <ellipse cx="24" cy="32" rx="13.86" ry="16"/>
-      <path d="M16 45.86 H32 M10.14 40 H37.86 M8 32 H40 M10.14 24 H37.86 M16 18.14 H32"/>
-    </g>
-    <path d="M30.2 22.8 C 27.7 20.3, 17.9 20.3, 17.9 26.5 C 17.9 32, 30.2 31.4, 30.2 37.5 C 30.2 43.7, 20.3 43.7, 17.9 41.2" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M24 18.5 V45.5" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M24 12.5 V15.5 M24 48.5 V51.5" stroke="#111827" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M36 24 C 46 25, 53 31, 59 42" stroke="#0369a1" stroke-width="3.2" stroke-linecap="round" fill="none"/>
-    <path d="M36 40 C 46 39, 53 33, 59 22" stroke="#38bdf8" stroke-width="3.2" stroke-linecap="round" fill="none"/>
-    <circle cx="13" cy="26" r="2.9" fill="#111827"/>
-    <circle cx="13" cy="26" r="1.9" fill="#ffffff"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Crossbill logo: a glossy globe-shaped bird head with a dollar sign and a crossed blue beak">
+<defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf7ef"/><stop offset="1" stop-color="#e2d4b8"/></linearGradient>
+<linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9a581"/></linearGradient>
+<filter id="tileshadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#3b2f1e" flood-opacity="0.35"/></filter><radialGradient id="mglobe" cx="0.36" cy="0.3" r="0.78"><stop offset="0" stop-color="#5b6577"/><stop offset="0.45" stop-color="#1f2937"/><stop offset="1" stop-color="#030712"/></radialGradient>
+<radialGradient id="mspec" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffffff" stop-opacity="0.75"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="msilver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#e5e7eb"/><stop offset="1" stop-color="#9ca3af"/></linearGradient>
+<linearGradient id="mup" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="0.5" stop-color="#0369a1"/><stop offset="1" stop-color="#0c4a6e"/></linearGradient>
+<linearGradient id="mlo" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#bae6fd"/><stop offset="0.5" stop-color="#38bdf8"/><stop offset="1" stop-color="#0284c7"/></linearGradient>
+<clipPath id="mclip"><circle cx="24" cy="32" r="16"/></clipPath>
+<filter id="mshadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="1.4" stdDeviation="1.2" flood-color="#0c1a2b" flood-opacity="0.45"/></filter></defs>
+<rect x="24" y="20" width="464" height="464" rx="104" fill="url(#tile)" filter="url(#tileshadow)"/>
+<rect x="25.5" y="21.5" width="461" height="461" rx="102.5" fill="none" stroke="url(#edge)" stroke-width="3"/>
+<path d="M128 24 H384 Q470 24 482 110 Q300 70 30 110 Q42 24 128 24 Z" fill="#ffffff" opacity="0.35"/>
+<g transform="translate(64 60) scale(6)"><g filter="url(#mshadow)">
+<path d="M36 24 C 46 25, 53 31, 59 42" stroke="url(#mup)" stroke-width="3.8" stroke-linecap="round" fill="none"/>
+<path d="M36.4 23.3 C 46 24.4, 52.6 30.2, 58.4 40.6" stroke="#ffffff" stroke-opacity="0.55" stroke-width="0.7" stroke-linecap="round" fill="none"/>
+<circle cx="24" cy="32" r="16" fill="url(#mglobe)"/>
+<g clip-path="url(#mclip)" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.32"><ellipse cx="24" cy="32" rx="8" ry="16"/><ellipse cx="24" cy="32" rx="13.86" ry="16"/><path d="M16 45.86 H32 M10.14 40 H37.86 M8 32 H40 M10.14 24 H37.86 M16 18.14 H32"/></g>
+<path d="M30.2 23.6 C 27.7 21.1, 17.9 21.1, 17.9 27.3 C 17.9 32.8, 30.2 32.2, 30.2 38.3 C 30.2 44.5, 20.3 44.5, 17.9 42" fill="none" stroke="#000000" stroke-opacity="0.45" stroke-width="3.4" stroke-linecap="round"/>
+<path d="M24 19.3 V46.3" stroke="#000000" stroke-opacity="0.45" stroke-width="3.4" stroke-linecap="round"/>
+<path d="M30.2 22.8 C 27.7 20.3, 17.9 20.3, 17.9 26.5 C 17.9 32, 30.2 31.4, 30.2 37.5 C 30.2 43.7, 20.3 43.7, 17.9 41.2" fill="none" stroke="url(#msilver)" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M24 18.5 V45.5" stroke="#eceef2" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M24 12.5 V15.5 M24 48.5 V51.5" stroke="#1f2937" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M36 40 C 46 39, 53 33, 59 22" stroke="url(#mlo)" stroke-width="3.8" stroke-linecap="round" fill="none"/>
+<path d="M36.4 39.2 C 46 38.2, 52.4 32.6, 58.2 22.6" stroke="#ffffff" stroke-opacity="0.6" stroke-width="0.7" stroke-linecap="round" fill="none"/>
+<circle cx="13" cy="26" r="3" fill="#030712"/><circle cx="13" cy="26" r="2" fill="#f8fafc"/><circle cx="12.4" cy="25.3" r="0.65" fill="#ffffff"/>
+<ellipse cx="18.5" cy="22.5" rx="8" ry="4.2" transform="rotate(-24 18.5 22.5)" fill="url(#mspec)"/>
+</g></g>
 </svg>

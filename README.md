@@ -11,6 +11,7 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 - **Live demo:** https://crossbill-agent.vercel.app (no sign-up, no access code, no cold start)
 - **Demo video (2:46):** https://youtu.be/74J9ANQp7qw
 - **Built for:** the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/), running on the PayPal **sandbox** (no real money moves)
+- **How it works, in depth:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): 13 diagrams, the code behind each step, and where each judging criterion is met
 
 ## Try it in 3 minutes (for judges)
 
@@ -33,6 +34,8 @@ Crossbill is an AI agent for freelancers paid by overseas clients. Describe the 
 ## The problem
 
 PayPal can't invoice in South African rand, so freelancers here (and in many other countries) bill overseas clients in US dollars. That means writing invoices by hand, chasing late payers by email, and at tax time converting every single payment into rand at the right exchange rate, usually in a spreadsheet kept on the side.
+
+They are part of a large group: the World Bank estimates there are 154 million to 435 million online gig workers worldwide, 4.4% to 12.5% of the global labour force ([*Working Without Borders*, 2023](https://thedocs.worldbank.org/en/doc/072814bbbb56aebd4db387154c3df3a5-0460012023/overview-english-working-without-boarders-online-gig-work)).
 
 ## What it does
 
@@ -62,6 +65,10 @@ Any freelancer paid from abroad: tutors, translators, designers, writers, virtua
 
 ## How it works
 
+<p align="center">
+  <img src="docs/crossbill-architecture.png" width="900" alt="How Crossbill works: 1, describe the job in the chat. 2, the AI agent drafts the invoice and nothing is sent. 3, you approve and PayPal creates and sends it. 4, the client pays. 5, PayPal confirms through a verified webhook. 6, the books update in rand at the rate for that day, in the dashboard and the tax statement.">
+</p>
+
 ```mermaid
 flowchart LR
   F[Freelancer] -->|describes the job| A[Next.js app on Vercel]
@@ -84,6 +91,8 @@ flowchart LR
 3. When a client pays, PayPal calls `/api/paypal/webhook`. Crossbill asks PayPal to verify the signature, re-reads the invoice from PayPal for the authoritative amount, and converts it at that day's rate.
 4. The books (`lib/ledger.ts`) are rebuilt live from PayPal on every request: no database to drift out of sync or pause. Each payment gets the rate for its own date; past rates are cached.
 5. Every money figure the agent quotes comes from a tool result, already formatted; the model never does currency arithmetic itself.
+
+The full picture, with a sequence diagram for every flow and the code behind each step, is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Every source file also opens with a short header: what it does, how it connects and the key ideas.
 
 ## PayPal integration
 
@@ -164,6 +173,7 @@ Open http://localhost:3000.
 
 | Path | What it does |
 | --- | --- |
+| `docs/ARCHITECTURE.md`, `docs/crossbill-architecture.png` | How everything connects: diagrams, code walk-throughs, the judging criteria map |
 | `lib/agent.ts` | AI agent: system prompt, six tools, provider fallback |
 | `lib/examples.ts` | The example prompts, shared by the chat and the agent |
 | `lib/paypal.ts` | PayPal REST client: invoicing and webhook verification |

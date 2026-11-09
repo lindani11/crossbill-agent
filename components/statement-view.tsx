@@ -12,6 +12,19 @@ import {
   type Period,
 } from "@/lib/money";
 
+/**
+ * components/statement-view.tsx · The Statement page: period, tables, downloads
+ *
+ *   a preset or a date range → GET /api/statement?from=&to= → the statement
+ *     → four totals, By month, Every payment, and the method note
+ *   Download PDF / CSV → the same address with &format=pdf or &format=csv
+ *   Print → the browser prints this page with the print styles (app/globals.css)
+ *
+ * The address bar follows the period (?from=&to=), so a statement can be
+ * bookmarked or shared.
+ */
+
+// The JSON from /api/statement (Statement in lib/statement.ts).
 type Payment = {
   invoice_id: string;
   invoice_number: string | null;
@@ -38,6 +51,7 @@ type Statement = {
 
 type Preset = { id: string; label: string; period: Period };
 
+/** Quick periods: tax years for rand, calendar years otherwise, then this and last month. */
 function presets(currency: string): Preset[] {
   const now = new Date();
   const y = now.getUTCFullYear();
@@ -63,6 +77,7 @@ function presets(currency: string): Preset[] {
   return list;
 }
 
+/** A headline number. */
 function Tile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
     <div className={`${accent ? "ff-panel-strong" : "ff-panel"} min-w-0 rounded-2xl p-3.5 sm:p-4`}>
@@ -78,12 +93,15 @@ function Tile({ label, value, sub, accent }: { label: string; value: string; sub
   );
 }
 
+// Shared cell classes. Numbers are right-aligned with tabular digits so columns line up.
 const th = "bg-[var(--bg)] px-3 py-2.5 text-left text-xs font-black uppercase tracking-[0.1em] text-[var(--ink)]";
 const thNum = `${th} text-right`;
 const td = "px-3 py-2 align-top";
 const tdNum = `${td} text-right tabular-nums`;
 
+/** initialFrom and initialTo come from the URL, already checked on the server. */
 export default function StatementView({ initialFrom, initialTo }: { initialFrom?: string; initialTo?: string }) {
+  // range is the period shown; draft holds the date fields until Show is pressed.
   const [range, setRange] = useState<{ from?: string; to?: string }>({ from: initialFrom, to: initialTo });
   const [draft, setDraft] = useState<{ from: string; to: string }>({ from: initialFrom ?? "", to: initialTo ?? "" });
   const [st, setSt] = useState<Statement | null>(null);
@@ -120,6 +138,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
 
   const cur = st?.currency ?? "ZAR";
   const options = useMemo(() => presets(cur), [cur]);
+  // Highlight the preset that matches the period shown, if any.
   const activePreset = st ? options.find((p) => p.period.from === st.period.from && p.period.to === st.period.to)?.id : undefined;
   const local = (v: number | null) => (v === null ? "—" : formatMoney(v, cur));
   const localWord = cur === "ZAR" ? "rand" : cur;
@@ -139,9 +158,12 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
           </p>
         </div>
         <div className="no-print flex flex-wrap gap-2">
+          {/* Plain links: the server answers with Content-Disposition: attachment, so
+              the file downloads. They do nothing until the statement has loaded. */}
           <a
             href={st ? `/api/statement?from=${st.period.from}&to=${st.period.to}&format=pdf` : "#"}
             aria-disabled={!st}
+            onClick={st ? undefined : (e) => e.preventDefault()}
             className="ff-btn ff-btn-primary"
           >
             Download PDF
@@ -149,6 +171,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
           <a
             href={st ? `/api/statement?from=${st.period.from}&to=${st.period.to}&format=csv` : "#"}
             aria-disabled={!st}
+            onClick={st ? undefined : (e) => e.preventDefault()}
             className="ff-btn ff-btn-secondary"
           >
             Download CSV
@@ -313,6 +336,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                           <td className={td}>{p.client ?? ""}</td>
                           <td className={tdNum}>{formatMoney(p.amount_usd, "USD")}</td>
                           <td className={tdNum}>{p.fx_rate ? p.fx_rate.toFixed(4) : "—"}</td>
+                          {/* "Same day" unless the rate is from an earlier working day (weekends, holidays). */}
                           <td className={`${td} text-[var(--muted)]`}>
                             {p.fx_date && p.fx_date !== p.paid_on ? formatDate(p.fx_date) : p.fx_date ? "Same day" : "—"}
                           </td>
@@ -347,18 +371,20 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                   className="font-extrabold text-[var(--accent-strong)] underline-offset-2 hover:underline"
                   href="https://www.sars.gov.za/lapd-intr-in-2012-63-rules-translation-amounts-foreign-currencies"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   SARS Interpretation Note 63
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
                 {" · "}
                 <a
                   className="font-extrabold text-[var(--accent-strong)] underline-offset-2 hover:underline"
                   href="https://www.sars.gov.za/legal-pub-aer-01-average-exchange-rates-specific-provisions-income-tax-act"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   SARS average exchange rates
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               </p>
             ) : null}

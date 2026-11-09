@@ -4,10 +4,25 @@ import { formatDate, formatMonth } from "./money";
 import type { Statement } from "./statement";
 
 /**
- * The income statement as a ready-made A4 PDF, built on the server. Unlike the
- * browser's print dialog, this never depends on the printer being reachable.
+ * lib/statement-pdf.ts · The income statement as an A4 PDF, drawn on the server
+ *
+ * pdf-lib draws text and lines at exact positions, so the file looks the same
+ * on every device and never depends on the browser's print dialog.
+ *
+ * How it connects
+ *   app/api/statement?format=pdf → buildStatement() → statementPdf() → download
+ *
+ * Key ideas
+ *   1. PDF positions are in points (1/72 inch) from the BOTTOM-left corner, so
+ *      the cursor `y` starts near the top of the page and moves down.
+ *   2. The standard fonts need no embedding but only know WinAnsi characters,
+ *      so every string goes through safe().
+ *   3. Tables measure text (widthOfTextAtSize) to right-align numbers, shorten
+ *      long names with "..." and start a new page when space runs out.
  */
 
+// A4 in points (210 × 297 mm), a 42-point (about 15 mm) margin, and the app's
+// colours as RGB fractions (ink, muted grey, deep blue, rules, header fill).
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 42;
 const INK = rgb(0.067, 0.094, 0.153);
@@ -26,7 +41,10 @@ function money(value: number | null, currency: string): string {
   return `${currency} ${DIGITS.format(value)}`;
 }
 
-/** Keep only characters the standard (WinAnsi) fonts can encode. */
+/**
+ * Keep only characters the standard (WinAnsi) fonts can encode: curly quotes
+ * and dashes become plain ones, anything else unknown becomes "?".
+ */
 function safe(text: string | null | undefined): string {
   return (text ?? "")
     .replace(/[‘’]/g, "'")
@@ -35,6 +53,7 @@ function safe(text: string | null | undefined): string {
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
 }
 
+/** Splits text into lines that fit `width` points, word by word. */
 function wrap(text: string, font: PDFFont, size: number, width: number): string[] {
   const words = safe(text).split(/\s+/);
   const lines: string[] = [];
@@ -52,6 +71,7 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
   return lines;
 }
 
+/** Shortens text with "..." until it fits `width` points (for table cells). */
 function fit(text: string, font: PDFFont, size: number, width: number): string {
   let t = safe(text);
   if (font.widthOfTextAtSize(t, size) <= width) return t;
@@ -59,8 +79,10 @@ function fit(text: string, font: PDFFont, size: number, width: number): string {
   return `${t}...`;
 }
 
+// A table column: its title, its width in points and its alignment.
 type Column = { title: string; width: number; align?: "right" };
 
+/** Draws the whole statement and returns the PDF file's bytes. */
 export async function statementPdf(st: Statement): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Income statement ${st.period.from} to ${st.period.to}`);
@@ -71,9 +93,11 @@ export async function statementPdf(st: Statement): Promise<Uint8Array> {
   const cur = st.currency;
   const contentWidth = A4[0] - MARGIN * 2;
 
+  // The cursor: the current page, and `y`, where the next line goes.
   let page: PDFPage = doc.addPage(A4);
   let y = A4[1] - MARGIN;
 
+  // Draws one line of text at the cursor.
   const text = (s: string, x: number, size: number, font = regular, color = INK) =>
     page.drawText(safe(s), { x, y, size, font, color });
 
@@ -82,10 +106,14 @@ export async function statementPdf(st: Statement): Promise<Uint8Array> {
     y = A4[1] - MARGIN;
   };
 
+  // Starts a new page when less than `height` points are left above the
+  // bottom margin and the page-number footer.
   const ensure = (height: number) => {
     if (y - height < MARGIN + 24) newPage();
   };
 
+  // Draws a table: a shaded header row (repeated on every new page), one ruled
+  // line per row, and with boldLast the final row in bold as the total.
   const table = (columns: Column[], rows: string[][], boldLast = false) => {
     const header = () => {
       ensure(40);
@@ -142,7 +170,7 @@ export async function statementPdf(st: Statement): Promise<Uint8Array> {
   );
   y -= 26;
 
-  // Summary
+  // Summary: four boxes side by side, the local-currency total highlighted
   const summary: [string, string][] = [
     ["Payments", String(st.totals.payments)],
     ["Total in USD", money(st.totals.usd, "USD")],
@@ -229,10 +257,10 @@ export async function statementPdf(st: Statement): Promise<Uint8Array> {
     y -= 11;
   }
 
-  // Page numbers
+  // Page numbers, drawn last because the page count is only known at the end
   const pages = doc.getPages();
   pages.forEach((p, i) => {
-    const label = `Crossbill · page ${i + 1} of ${pages.length}`.replace("·", "-");
+    const label = `Crossbill - page ${i + 1} of ${pages.length}`;
     const w = regular.widthOfTextAtSize(label, 7.5);
     p.drawText(label, { x: A4[0] - MARGIN - w, y: MARGIN - 18, size: 7.5, font: regular, color: MUTED });
   });

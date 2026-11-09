@@ -1,11 +1,27 @@
 @import "tailwindcss";
 
 /*
- * Crossbill look: a flat design with a pale cream canvas, white panels with
- * deep-blue edges and sky-blue actions. No textures, shadows, blur or glow;
- * motion only where it helps (landing, example flash, dropdown), and none
- * for people who ask for reduced motion.
+ * app/globals.css · The Crossbill look, on top of Tailwind CSS v4
+ *
+ * A flat design with a pale cream canvas, white panels with deep-blue edges
+ * and sky-blue actions. No textures, shadows, blur or glow; motion only where
+ * it helps (landing, example flash, dropdown), and none for people who ask
+ * for reduced motion.
+ *
+ * Contents
+ *   1. Design tokens (CSS custom properties)
+ *   2. Base: page, text selection, focus ring
+ *   3. Components (ff-*): panels, buttons, tabs, inputs, example cards,
+ *      dropdown, input placeholder, loading states
+ *   4. Keyframes
+ *   5. Landing animation (cb-*)
+ *   6. Reduced motion
+ *   7. Print (the statement)
+ *
+ * The tokens are CSS variables, so Tailwind classes such as
+ * text-[var(--accent-strong)] and the AG Grid theme share one palette.
  */
+/* 1. Design tokens */
 :root {
   --canvas: #ebe3d2; /* pale cream */
   --bg: #f7f2e8; /* light cream tint: table headers, hovers, insets */
@@ -24,6 +40,7 @@
   color-scheme: light;
 }
 
+/* 2. Base */
 html {
   min-width: 320px;
   background: var(--canvas);
@@ -48,6 +65,8 @@ body {
   outline-offset: 3px;
 }
 
+/* 3. Components. In Tailwind's components layer, so a utility class on the
+ * same element still wins. */
 @layer components {
   .ff-panel {
     border: 1px solid var(--line);
@@ -322,6 +341,7 @@ body {
   }
 }
 
+/* 4. Keyframes */
 @keyframes ff-flash {
   0%,
   60%,
@@ -355,7 +375,7 @@ body {
 }
 
 /*
- * Landing animation (components/splash.tsx): the logo draws itself, then the
+ * 5. Landing animation (components/splash.tsx): the logo draws itself, then the
  * name rises in, in about 1.6 seconds. The script fades it out once
  * the page has loaded; if the script never runs, it hides itself after 7s.
  */
@@ -471,6 +491,7 @@ body {
   }
 }
 
+/* 6. Reduced motion: the same screens, without the movement. */
 @media (prefers-reduced-motion: reduce) {
   .ff-spinner {
     animation-duration: 2s;
@@ -508,7 +529,7 @@ body {
   }
 }
 
-/* Statement print view: black on white, no buttons or navigation. */
+/* 7. Print (the Statement page): black on white, no buttons or navigation. */
 @media print {
   :root {
     --bg: #ffffff;

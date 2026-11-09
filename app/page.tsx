@@ -2,6 +2,16 @@ import Chat from "@/components/chat";
 import SiteHeader from "@/components/site-header";
 import { exampleRecipients } from "@/lib/recipients";
 
+/**
+ * app/page.tsx · "/", the Chat page
+ *
+ * A Server Component, rendered on the server where the env vars are (at build
+ * time, as the page is static). The browser gets only the sandbox test emails
+ * that the example prompts need.
+ *
+ *   <SiteHeader> → <main id="main"> → <Chat testEmails> (components/chat.tsx)
+ */
+
 export default function Home() {
   return (
     <>

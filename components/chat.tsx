@@ -5,6 +5,24 @@ import ProposalCard from "./proposal-card";
 import type { Proposal } from "@/lib/schemas";
 import { buildExamples, type Example } from "@/lib/examples";
 
+/**
+ * components/chat.tsx · The chat: messages, example prompts and the input
+ *
+ * A Client Component ("use client"): the conversation lives in React state in
+ * this tab only. Nothing is stored; a refresh starts a new chat.
+ *
+ * How it connects
+ *   app/page.tsx → <Chat testEmails> → buildExamples() → the example cards
+ *   send() → POST /api/chat (the last 20 messages) → lib/agent.ts runAgent()
+ *     ← { text, proposals, suggestions, provider }
+ *        proposals   → <ProposalCard> with Approve & send
+ *        suggestions → <ExampleDropdown>
+ *
+ * Accessibility: the message list is a live region (role="log"), so screen
+ * readers announce each reply; Enter sends and Shift+Enter adds a line.
+ */
+
+// One chat bubble. A reply from Crossbill can carry draft cards and example buttons.
 type Message = {
   role: "user" | "assistant";
   content: string;
@@ -13,6 +31,7 @@ type Message = {
   provider?: string;
 };
 
+// Also the input's accessible name (aria-label), so it is never only a visual hint.
 const PLACEHOLDER = "Describe the job to invoice, or ask who owes you…";
 
 /** How each AI provider is named under a reply. */
@@ -28,8 +47,10 @@ function plainText(text: string): string {
     .replace(/^\s*[*•]\s+/gm, "- ");
 }
 
+/** testEmails come from the server (app/page.tsx), for the example prompts. */
 export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   const examples = buildExamples(testEmails);
+  // The whole conversation is React state; refreshing the page starts afresh.
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,9 +86,11 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
     endRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
   }, [messages, loading]);
 
+  // Adds the freelancer's message, asks the agent, then adds its reply (or an error).
   async function send(text: string) {
     const content = text.trim();
     if (!content || loading) return;
+    // Show the message at once (an optimistic update), before the reply arrives.
     const next: Message[] = [...messages, { role: "user", content }];
     setMessages(next);
     setInput("");
@@ -102,6 +125,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   return (
     <div className="flex flex-1 flex-col pb-4">
       <div role="log" aria-live="polite" aria-label="Conversation" className="flex-1 space-y-4 py-2">
+        {/* Empty chat: the intro and the three example prompts. */}
         {messages.length === 0 ? (
           <>
             <div>
@@ -122,6 +146,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
           <h1 className="sr-only">Chat with Crossbill</h1>
         )}
 
+        {/* The conversation: the freelancer on the right, Crossbill on the left with any cards. */}
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="flex justify-end">
@@ -143,6 +168,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
           ),
         )}
 
+        {/* role="status" announces "Thinking…" politely; role="alert" (below) at once. */}
         {loading ? (
           <p role="status" className="ff-panel inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[var(--muted)]">
             <span aria-hidden="true" className="ff-spinner" />
@@ -158,6 +184,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
         <div ref={endRef} className="scroll-mb-32" />
       </div>
 
+      {/* Sticky at the bottom, so the input stays within reach on a phone. */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -270,6 +297,7 @@ function ExampleDropdown({
           <path d="M4 6l4 4 4-4" />
         </svg>
       </button>
+      {/* inert while closed: hidden buttons can't be tabbed to or read out. */}
       <div id={id} className="ff-collapse" data-open={open} inert={!open}>
         <div className="ff-collapse-inner">
           <ExampleList examples={examples} onPick={onPick} disabled={disabled} />
