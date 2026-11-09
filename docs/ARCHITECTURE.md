@@ -16,7 +16,7 @@ This page explains how every part connects, with diagrams and the code behind ea
 | --- | --- |
 | **Live demo** | https://crossbill-agent.vercel.app (the test login is in the [README](../README.md#try-it-in-3-minutes-for-judges)) |
 | **Demo video** | https://youtu.be/74J9ANQp7qw (2:46) |
-| **In numbers** | 3 pages · 6 API routes · 6 agent tools · 8 PayPal REST calls + 1 webhook event · 2 AI providers · 0 databases |
+| **In numbers** | 3 pages · 6 API routes · 6 agent tools · 8 PayPal REST calls + 1 webhook event · 3 AI models from 2 providers · 0 databases |
 
 ## Contents
 
@@ -47,7 +47,7 @@ The five criteria are equally weighted. Each row points to the evidence.
 
 | Criterion | What Crossbill shows | Where to look |
 | --- | --- | --- |
-| **Technological Implementation**: how thoroughly and skilfully PayPal and AI are used | PayPal Invoicing v2 end to end: next number, create (idempotent), send, list, read, remind, plus a signed webhook verified by PayPal. A Vercel AI SDK agent with six tools, multi-step tool calling, two providers with automatic fallback, and guardrails in code | [Flow 2](#5-flow-2-approve--send), [Flow 3](#6-flow-3-the-client-pays-the-webhook-lands), [Inside the agent](#10-inside-the-agent); `lib/paypal.ts`, `lib/agent.ts` |
+| **Technological Implementation**: how thoroughly and skilfully PayPal and AI are used | PayPal Invoicing v2 end to end: next number, create (idempotent), send, list, read, remind, plus a signed webhook verified by PayPal. A Vercel AI SDK agent with six tools, multi-step tool calling, three free models from two providers with automatic fallback, and guardrails in code | [Flow 2](#5-flow-2-approve--send), [Flow 3](#6-flow-3-the-client-pays-the-webhook-lands), [Inside the agent](#10-inside-the-agent); `lib/paypal.ts`, `lib/agent.ts` |
 | **Design**: a complete, coherent product, not a proof of concept | One loop from words to invoice to payment to tax statement: Chat, Dashboard, Statement, PDF and CSV. Works on a 320-pixel phone, installs as an app, has an offline page, and passes an axe accessibility audit with no violations | [Section 13](#13-in-the-browser-landing-offline-installable); `components/` |
 | **Potential Impact**: a credible, specific case for a real audience | The World Bank estimates **154 to 435 million online gig workers** worldwide, 4.4 to 12.5% of the global labour force ([*Working Without Borders*, 2023](https://thedocs.worldbank.org/en/doc/072814bbbb56aebd4db387154c3df3a5-0460012023/overview-english-working-without-boarders-online-gig-work)). PayPal can't invoice in rand, so South African freelancers bill in USD and, by default, convert every payment at the spot rate on the day it was received ([SARS Interpretation Note 63](https://www.sars.gov.za/lapd-intr-in-2012-63-rules-translation-amounts-foreign-currencies)). Crossbill does exactly that conversion, payment by payment | [Flow 4](#7-flow-4-the-books-and-the-exchange-rates), [Flow 5](#8-flow-5-the-tax-statement-pdf-and-csv); `lib/ledger.ts`, `lib/fx.ts` |
 | **Innovation**: how the idea differs | The agent ends at tax-ready books, not at the invoice. Approval is enforced by tool design (the model has no tool that sends). The books have no database: they are rebuilt from PayPal on every request, so they can't drift | [Design decisions](#15-design-decisions) |
@@ -72,8 +72,9 @@ flowchart LR
   end
 
   subgraph AI["AI models, free tiers"]
-    GQ["Groq<br/>openai/gpt-oss-120b"]
-    GM["Google Gemini<br/>backup"]
+    GQ["Groq<br/>openai/gpt-oss-120b<br/>main model"]
+    GQS["Groq<br/>openai/gpt-oss-20b<br/>first backup"]
+    GM["Google Gemini<br/>second backup"]
   end
 
   subgraph PAYPAL["PayPal sandbox"]
@@ -87,7 +88,8 @@ flowchart LR
   UI -->|"fetch, JSON"| API
   API --> LIB
   LIB -->|"tool calling"| GQ
-  LIB -.->|"only if Groq fails"| GM
+  LIB -.->|"if it fails"| GQS
+  LIB -.->|"if both fail"| GM
   LIB -->|"create · send · list · read · remind · verify"| REST
   REST -->|"invoice email, payment page"| K
   K -->|"pays in USD"| REST
@@ -181,7 +183,7 @@ sequenceDiagram
   participant C as Chat in the browser
   participant R as POST /api/chat
   participant A as runAgent()
-  participant M as Model: Groq, else Gemini
+  participant M as Model: Groq, else a backup
   participant T as Agent tools
 
   F->>C: Invoice Jack Smith for 3 days at $250 a day
@@ -500,13 +502,17 @@ AG Studio loads with `next/dynamic` and `ssr: false`, with a skeleton meanwhile,
 
 `runAgent()` in `lib/agent.ts` calls the Vercel AI SDK's `generateText` with the instructions, the conversation and six tools. The model may call tools, read their results and call more, for up to five steps.
 
+Three free models take over from each other: Groq's `openai/gpt-oss-120b`, then Groq's `openai/gpt-oss-20b` (Groq's free limits are per model, so it has its own daily quota), then Google's Gemini, which answers even if Groq itself is down. A rate limit that asks for a wait of 10 seconds or less is waited out once on the same model; anything else moves straight on.
+
 ```mermaid
 flowchart TD
   IN["the freelancer's messages"] --> GROQ["Groq: openai/gpt-oss-120b"]
   GROQ -->|"429, wait of 10 s or less"| WAIT["wait, then retry once"]
   WAIT --> GROQ
-  GROQ -->|"any other failure"| GEM["Gemini, the backup"]
+  GROQ -->|"any other failure"| SMALL["Groq: openai/gpt-oss-20b<br/>its own free quota"]
+  SMALL -->|"fails too"| GEM["Gemini, if Groq is down"]
   GROQ --> STEP{"up to 5 steps:<br/>does the model call a tool?"}
+  SMALL --> STEP
   GEM --> STEP
   STEP -->|"propose_invoice or propose_reminder"| QUEUE["checked, then queued<br/>as a proposal, never sent"]
   STEP -->|"list_invoices, earnings or income_statement"| READ["read the books<br/>amounts as ready text"]
@@ -719,7 +725,7 @@ Set in `.env.local` locally (git-ignored) and in the Vercel project settings.
 | `PAYPAL_API_BASE` | `lib/paypal.ts` | Sandbox by default; the live URL switches off the allowlist |
 | `PAYPAL_WEBHOOK_ID` | `lib/paypal.ts` | Needed to verify webhook signatures |
 | `SANDBOX_TEST_EMAILS` | `lib/recipients.ts` | The test clients that may receive invoices |
-| `AI_PROVIDER_ORDER`, `GROQ_API_KEY`, `GROQ_MODEL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL` | `lib/agent.ts` | Which models, in which order |
+| `AI_PROVIDER_ORDER`, `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_SMALL_MODEL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL` | `lib/agent.ts` | Which models, in which order (default `groq,groq-small,gemini`) |
 | `DEFAULT_PAYMENT_TERM` | `lib/paypal.ts` | Due terms when the agent doesn't set them |
 | `LOCAL_CURRENCY` | `lib/fx.ts` | The currency of the books (default ZAR) |
 | `BUSINESS_NAME` | `lib/paypal.ts`, `lib/statement.ts` | The name on invoices and the statement |
@@ -747,7 +753,7 @@ The chat and dashboard pages are static HTML; their data arrives through the API
 | **Approval enforced by tool design** | A prompt that says "ask first" is a request; a model with no sending tool can't send | One extra tap per invoice, which is the point |
 | **One rate per payment date** | SARS Interpretation Note 63 translates foreign income at the spot rate on the day it is received, and part-payments arrive on different days | One rate lookup per distinct day (cached) |
 | **The model never does arithmetic** | Language models are good at structure and unreliable at sums | Tools return more fields (`*_text`) |
-| **Two AI providers** | Free tiers run out; a backup keeps the demo answering | Replies can differ slightly by provider; the reply shows which one answered |
+| **Three AI models, two providers** | Free tiers run out. Groq's limits are per model, so its smaller model adds a second daily quota, and Gemini answers even if Groq itself is down | Replies can differ slightly by model; each reply shows which one answered |
 | **A PDF built on the server** | The browser's print dialog behaves differently on every phone | A small PDF library (pdf-lib) on the server |
 | **A sandbox allowlist** | PayPal has no API that says whether an email belongs to a PayPal account | Only listed test clients on the sandbox; any address in live mode |
 | **Rate limits and caches in memory** | Free and simple for a demo | Per server instance, reset on a cold start |
@@ -765,6 +771,7 @@ The chat and dashboard pages are static HTML; their data arrives through the API
 | Rate limits and caches are per server instance | A shared store such as Upstash Redis |
 | Sandbox only, one freelancer per deployment | Live mode with Log in with PayPal, one account per freelancer |
 | An open dashboard doesn't update by itself when a payment lands | Push the webhook's news to open pages, or refresh on focus |
+| Free AI quotas reset daily; a very busy day could use up all three | A paid tier, or more providers in the same fallback chain |
 | The spot-rate method only | Also offer the SARS average-rate election for the tax year |
 | With a currency other than ZAR, the statement still opens on the South African tax year until a preset or range is picked | Open on the calendar year for other currencies |
 

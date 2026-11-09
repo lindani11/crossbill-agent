@@ -72,7 +72,7 @@ Any freelancer paid from abroad: tutors, translators, designers, writers, virtua
 ```mermaid
 flowchart LR
   F[Freelancer] -->|describes the job| A[Next.js app on Vercel]
-  A --> G[AI agent: Groq, Gemini as backup]
+  A --> G[AI agent: Groq, with backups on Groq and Gemini]
   G -->|read-only tools| P[PayPal Invoicing API]
   G -->|proposes| C[Invoice or reminder card]
   C -->|Approve & send| S[Send route] --> P
@@ -112,9 +112,10 @@ The full picture, with a sequence diagram for every flow and the code behind eac
 | --- | --- |
 | [Vercel AI SDK](https://ai-sdk.dev/) | Tool calling and multi-step agent loop (`lib/agent.ts`) |
 | Groq, model `openai/gpt-oss-120b` | Main model: reads the freelancer's message and calls the tools |
-| Google Gemini, model `gemini-3.8-flash` | Automatic backup: takes over instantly if Groq fails or hits its free quota |
+| Groq, model `openai/gpt-oss-20b` | First backup: Groq's free limits are per model, so it has its own daily quota when the main model is busy |
+| Google Gemini, model `gemini-3.8-flash` | Second backup: from another company, so it answers even if Groq itself is down |
 
-Both run on free tiers. The model order and names are set by environment variables, so a retired or overloaded model can be swapped without code changes.
+All three run on free tiers and take over from each other automatically. The model order and names are set by environment variables, so a retired or overloaded model can be swapped without code changes.
 
 ## How we used AG Grid and AG Studio
 
@@ -163,8 +164,8 @@ Open http://localhost:3000.
 | `SANDBOX_TEST_EMAILS` | Your sandbox **personal** (client) account emails, comma-separated. Only these can receive invoices on the sandbox |
 | `GROQ_API_KEY` | [Groq console](https://console.groq.com/keys) (free) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) (free) |
-| `AI_PROVIDER_ORDER` | Optional, default `groq,gemini` |
-| `GROQ_MODEL`, `GEMINI_MODEL` | Optional, defaults `openai/gpt-oss-120b` and `gemini-3.8-flash` |
+| `AI_PROVIDER_ORDER` | Optional, default `groq,groq-small,gemini`; any left out are tried after the listed ones |
+| `GROQ_MODEL`, `GROQ_SMALL_MODEL`, `GEMINI_MODEL` | Optional, defaults `openai/gpt-oss-120b`, `openai/gpt-oss-20b` and `gemini-3.8-flash` |
 | `DEFAULT_PAYMENT_TERM` | Optional, default `NET_15`; or `DUE_ON_RECEIPT`, `NET_10`, `NET_30` |
 | `LOCAL_CURRENCY` | Optional, default `ZAR`; any ISO code, e.g. `INR`, `PHP`, `KES` |
 | `BUSINESS_NAME` | Optional: the name clients see on your invoices and statement |

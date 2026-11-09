@@ -28,7 +28,8 @@ import {
  *
  * How it connects
  *   app/api/chat → runAgent(messages)
- *     → generateText() (Vercel AI SDK) on Groq gpt-oss-120b, else Gemini
+ *     → generateText() (Vercel AI SDK): Groq gpt-oss-120b, else Groq
+ *       gpt-oss-20b, else Gemini
  *       → tools: show_examples, propose_invoice, list_invoices, earnings,
  *                income_statement, propose_reminder
  *         → lib/ledger.ts and lib/statement.ts (read), lib/recipients.ts (check)
@@ -41,8 +42,8 @@ import {
  *      with Approve & send.
  *   3. The model never does money arithmetic: tools return ready-formatted
  *      *_text values for it to copy.
- *   4. Two free-tier providers: a short rate limit is waited out once, and any
- *      other failure moves on to the backup.
+ *   4. Three free-tier models from two companies: a short rate limit is waited
+ *      out once, and any other failure moves on to the next model.
  */
 
 /**
@@ -342,24 +343,38 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
   };
 }
 
+// The order the models are tried in, when AI_PROVIDER_ORDER doesn't say.
+const DEFAULT_ORDER = ["groq", "groq-small", "gemini"];
+
 /**
- * Providers in the order to try them. AI_PROVIDER_ORDER sets the order
- * (default "groq,gemini"); providers without an API key are skipped. Model
+ * The models in the order to try them.
+ *
+ *   groq       → Groq, openai/gpt-oss-120b: the main model
+ *   groq-small → Groq, openai/gpt-oss-20b: Groq's free limits are per model,
+ *                so it has its own daily quota for when the main one is busy
+ *   gemini     → Google Gemini: answers even if Groq itself is down
+ *
+ * AI_PROVIDER_ORDER puts some first ("groq,gemini"); the ones it leaves out
+ * follow in the default order, and any without an API key are skipped. Model
  * names come from env vars, so a retired model is swapped without new code.
  */
 function providers(): { name: string; model: LanguageModel }[] {
   const make: Record<string, () => LanguageModel | null> = {
     groq: () =>
       process.env.GROQ_API_KEY ? groq(process.env.GROQ_MODEL || "openai/gpt-oss-120b") : null,
+    "groq-small": () =>
+      process.env.GROQ_API_KEY ? groq(process.env.GROQ_SMALL_MODEL || "openai/gpt-oss-20b") : null,
     gemini: () =>
       process.env.GOOGLE_GENERATIVE_AI_API_KEY
         ? google(process.env.GEMINI_MODEL || "gemini-3.8-flash")
         : null,
   };
-  const order = (process.env.AI_PROVIDER_ORDER || "groq,gemini")
+  const listed = (process.env.AI_PROVIDER_ORDER ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s in make);
+  // A Set keeps the first position of each name and drops repeats.
+  const order = [...new Set([...listed, ...DEFAULT_ORDER])];
 
   const list: { name: string; model: LanguageModel }[] = [];
   for (const name of order) {

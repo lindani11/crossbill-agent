@@ -35,7 +35,7 @@ type Message = {
 const PLACEHOLDER = "Describe the job to invoice, or ask who owes you…";
 
 /** How each AI provider is named under a reply. */
-const PROVIDER_NAMES: Record<string, string> = { groq: "Groq", gemini: "Gemini" };
+const PROVIDER_NAMES: Record<string, string> = { groq: "Groq", "groq-small": "Groq (small model)", gemini: "Gemini" };
 
 /** Safety net in case a model still sends markdown: show clean plain text. */
 function plainText(text: string): string {
