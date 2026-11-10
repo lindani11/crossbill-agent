@@ -580,7 +580,7 @@ flowchart TD
   T1 --> SUG
   T2 --> SUG
   SUG{"examples requested, or a greeting,<br/>and no draft?"}
-  SUG -->|yes| BTN["add the 3 example buttons"]
+  SUG -->|yes| BTN["add the 4 example buttons"]
   SUG -->|no| OUT["reply: text, proposals,<br/>suggestions, provider"]
   BTN --> OUT
 ```
@@ -903,7 +903,7 @@ Every file opens with a header (what it does, how it connects, key ideas), and t
 | `lib/ratelimit.ts` | Per-IP rate limits |
 | `lib/schemas.ts` | zod schemas and types |
 | `lib/money.ts` | Money, dates and tax years |
-| `lib/examples.ts` | The three example prompts |
+| `lib/examples.ts` | The four example prompts |
 | `public/sw.js`, `public/offline.html` | The offline page |
 | `next.config.ts` | Security headers |
 

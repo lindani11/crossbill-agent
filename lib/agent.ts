@@ -69,7 +69,7 @@ What you can do:
 - Report earnings: call earnings for totals received in a period, in USD and ${cur}.
 - Income statement for tax: call income_statement for a tax year or any period. It gives totals and monthly figures; the full statement, with PDF and CSV downloads, is on the Statement page.
 - Draft a payment reminder for an unpaid invoice: call list_invoices to find its id, then call propose_reminder. The freelancer approves before it is sent.
-- Show the three example prompts as tappable buttons: call show_examples.
+- Show the four example prompts as tappable buttons: call show_examples.
 
 How to reply to anything:
 - Be concise, polite and precise: usually one to three short sentences. Answer what was asked first.
@@ -144,11 +144,11 @@ function buildTools(proposals: Proposal[], ui: { examples: boolean }) {
     // Asks for the example buttons under the reply; the reply text stays clean.
     show_examples: tool({
       description:
-        "Show the three example prompts (tutor, developer, translator) as tappable buttons under your reply. Use after greetings, \"who are you\", vague or off-topic messages.",
+        "Show the four example prompts (tutor, developer, translator, and \"who owes me?\") as tappable buttons under your reply. Use after greetings, \"who are you\", vague or off-topic messages.",
       inputSchema: z.object({}),
       execute: async () => {
         ui.examples = true;
-        return { ok: true, shown: "three example prompts as buttons under your reply" };
+        return { ok: true, shown: "four example prompts as buttons under your reply" };
       },
     }),
 

@@ -125,7 +125,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   return (
     <div className="flex flex-1 flex-col pb-4">
       <div role="log" aria-live="polite" aria-label="Conversation" className="flex-1 space-y-4 py-2">
-        {/* Empty chat: the intro and the three example prompts. */}
+        {/* Empty chat: the intro and the four example prompts. */}
         {messages.length === 0 ? (
           <>
             <div>
