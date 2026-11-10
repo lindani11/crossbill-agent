@@ -60,6 +60,10 @@ The five criteria are equally weighted. Each row points to the evidence.
 
 Everything runs in one Next.js app. The browser only talks to Crossbill's own API routes; the routes talk to PayPal, the AI models and the exchange-rate services. Secrets never leave the server.
 
+<p align="center"><img src="diagrams/01-big-picture.png" alt="The big picture: the freelancer uses the Next.js app on Vercel, which talks to Groq and Gemini, PayPal and the exchange-rate services" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   F["Freelancer<br/>phone or computer"]
@@ -97,11 +101,17 @@ flowchart LR
   LIB -->|"rate on each payment date"| FX
 ```
 
+</details>
+
 ---
 
 ## 3. The code map
 
 Who imports or calls whom. Solid arrows are imports; arrows marked `fetch` cross from the browser to the server.
+
+<p align="center"><img src="diagrams/02-code-map.png" alt="The code map: pages, client components, API routes and lib modules, with arrows showing imports and fetch calls" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
@@ -170,11 +180,17 @@ flowchart TB
   ledger --> fx
 ```
 
+</details>
+
 Every route also calls `lib/ratelimit.ts`. The chat and approval routes validate their input with `lib/schemas.ts`, the statement route checks its dates with `isIsoDate`, and the webhook trusts only what PayPal verifies. `import "server-only"` at the top of the server modules makes the build fail if browser code ever imports them, so the PayPal secret and the AI keys can't be bundled into a page.
 
 ---
 
 ## 4. Flow 1: from plain words to a draft invoice
+
+<p align="center"><img src="diagrams/03-flow-draft.png" alt="Sequence: from a plain-words message to a draft invoice card, through the chat route, the agent, the model and the tools" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -204,6 +220,8 @@ sequenceDiagram
   C-->>F: the reply and an invoice card with Approve & send
 ```
 
+</details>
+
 The tool only checks and queues. This is the whole `execute` of `propose_invoice` in `lib/agent.ts`:
 
 ```ts
@@ -227,6 +245,10 @@ The model turns "3 days at $250 a day" into `quantity: 3, unit_amount: 250` and 
 ## 5. Flow 2: Approve & send
 
 Sending lives in its own route, reached only from the card's button. The card carries one request id for its whole life, so a double tap or a retry can never create two invoices.
+
+<p align="center"><img src="diagrams/04-flow-approve.png" alt="Sequence: Approve & send creates, numbers and sends the PayPal invoice with an idempotent request id" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 sequenceDiagram
@@ -255,6 +277,8 @@ sequenceDiagram
   S-->>Card: 200 JSON
   Card-->>F: Invoice 0007 sent. Status SENT. Open the payment page
 ```
+
+</details>
 
 The idempotency key is made once in the browser and sent with the create call:
 
@@ -294,6 +318,10 @@ Reminders work the same way through `POST /api/invoices/remind`, with one differ
 
 ## 6. Flow 3: the client pays, the webhook lands
 
+<p align="center"><img src="diagrams/05-flow-webhook.png" alt="Sequence: the client pays, PayPal calls the webhook, PayPal verifies the signature and the payment is converted at that day's rate" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 sequenceDiagram
   autonumber
@@ -321,6 +349,8 @@ sequenceDiagram
     W-->>PP: 200 ok
   end
 ```
+
+</details>
 
 Crossbill doesn't check PayPal's certificate chain itself. It hands PayPal the headers, its webhook id and the exact event, and PayPal answers:
 
@@ -352,6 +382,10 @@ The webhook stores nothing. The books are rebuilt from PayPal on every request (
 
 `getLedger()` in `lib/ledger.ts` turns PayPal invoices into rows and payments. Every PayPal transaction is its own payment, so each part of a part-paid invoice gets the rate for its own day.
 
+<p align="center"><img src="diagrams/06-books-and-rates.png" alt="Flow: invoices from PayPal become ledger rows, each payment converted at the rate for its own day with a cached fallback chain" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   LIST["listInvoices(pageSize)<br/>one PayPal page"] --> PAID{"paid or<br/>partly paid?"}
@@ -372,6 +406,8 @@ flowchart TB
   ROW --> STMT["Statement, PDF, CSV"]
   ROW --> AGENT["Agent tools"]
 ```
+
+</details>
 
 Each payment is converted at its own date:
 
@@ -415,6 +451,10 @@ On weekends and public holidays the European Central Bank publishes no rate, so 
 
 ## 8. Flow 5: the tax statement, PDF and CSV
 
+<p align="center"><img src="diagrams/07-statement.png" alt="Flow: the statement route checks the period, builds the statement and returns JSON, CSV or PDF" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   VIEW["StatementView<br/>a preset or a date range"] -->|"GET ?from and to"| ROUTE["GET /api/statement"]
@@ -428,6 +468,8 @@ flowchart LR
   PDF --> FILE
 ```
 
+</details>
+
 - **The period.** With no dates, the current South African tax year (1 March to the end of February). The presets add last tax year, this month and last month; any range works.
 - **The method.** Each payment at the spot rate on the day it was received, the default for individuals in SARS Interpretation Note 63. The statement says so, names the rate sources, and adds that it is a record, not tax advice.
 - **The PDF** is drawn on the server, so it downloads the same way on every phone. PDF positions count up from the bottom of the page in points (1/72 inch); the drawing cursor `y` starts at the top and moves down, and a new page starts when space runs out.
@@ -436,6 +478,10 @@ flowchart LR
 ---
 
 ## 9. Flow 6: the dashboard, AG Grid and AG Studio
+
+<p align="center"><img src="diagrams/08-dashboard.png" alt="Flow: the dashboard feeds AG Grid and an AG Studio report built on two data sources, invoices and payments" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
@@ -453,6 +499,8 @@ flowchart TB
   STUDIO --> PG["grid<br/>every payment"]
   STUDIO -->|"Edit report"| SAVE["the edited report<br/>kept in this browser"]
 ```
+
+</details>
 
 **AG Grid** gets plain rows and column definitions. Value formatters show money and dates while the cell keeps the raw value, so sorting stays numeric. The local-currency column is pinned right, so on a phone it stays in view while the rest scrolls:
 
@@ -504,6 +552,10 @@ AG Studio loads with `next/dynamic` and `ssr: false`, with a skeleton meanwhile,
 
 Three free models take over from each other: Groq's `openai/gpt-oss-120b`, then Groq's `openai/gpt-oss-20b` (Groq's free limits are per model, so it has its own daily quota), then Google's Gemini, which answers even if Groq itself is down. A rate limit that asks for a wait of 10 seconds or less is waited out once on the same model; anything else moves straight on.
 
+<p align="center"><img src="diagrams/09-agent.png" alt="Flow: inside the agent, three models in a fallback chain, up to five tool steps, then clean-up and fallbacks" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TD
   IN["the freelancer's messages"] --> GROQ["Groq: openai/gpt-oss-120b"]
@@ -532,6 +584,8 @@ flowchart TD
   SUG -->|no| OUT["reply: text, proposals,<br/>suggestions, provider"]
   BTN --> OUT
 ```
+
+</details>
 
 ```ts
 // lib/agent.ts, runAgent()
@@ -570,6 +624,10 @@ The six tools:
 
 ## 11. Safety by design
 
+<p align="center"><img src="diagrams/10-safety.png" alt="Safety lanes: chat can only read and propose, sending needs a person to approve, webhooks are verified by PayPal" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   subgraph CHAT["1. Chat: the AI can only read and propose"]
@@ -596,6 +654,8 @@ flowchart TB
   SEND -.->|"the client pays"| HOOK
 ```
 
+</details>
+
 | Risk | What Crossbill does | Where |
 | --- | --- | --- |
 | The AI sends something by mistake | The agent has no sending tool; separate routes send, and only the Approve button calls them | `lib/agent.ts`, `app/api/invoices/*` |
@@ -613,6 +673,10 @@ flowchart TB
 ## 12. The data model
 
 There is no database. These are the shapes the code passes around, all built from PayPal on request.
+
+<p align="center"><img src="diagrams/11-data-model.png" alt="Data model: PayPal invoice, ledger row, payment, exchange rate, statement, month total and invoice proposal" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 erDiagram
@@ -670,6 +734,8 @@ erDiagram
   }
 ```
 
+</details>
+
 - Money from PayPal arrives as strings (`"70.00"`); `num()` turns it into numbers, and `round2()` rounds to cents whenever amounts are added up.
 - Dates are `YYYY-MM-DD` text. In that format text order is date order, so ranges are simple comparisons with no time zones.
 - A row's rate is the payment's own rate, or with several payments the weighted average (local ÷ USD), so a row always reconciles with its payments.
@@ -677,6 +743,10 @@ erDiagram
 ---
 
 ## 13. In the browser: landing, offline, installable
+
+<p align="center"><img src="diagrams/12-browser.png" alt="Flow: the landing animation, the service worker and the offline page" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
 
 ```mermaid
 flowchart TB
@@ -691,6 +761,8 @@ flowchart TB
   LATER -->|"offline"| OFF["sw.js shows the cached<br/>offline page"]
   OFF -->|"connection back"| RELOAD["the page reloads itself"]
 ```
+
+</details>
 
 - **Landing animation** (`components/splash.tsx`, `app/globals.css`): part of the server HTML and animated with CSS only, so it paints at once on a slow connection. People who ask for reduced motion see the finished logo without movement.
 - **Offline** (`public/sw.js`): the service worker caches one file, `offline.html`. Every other request goes to the network, so invoices, payments and rates are never stale.
@@ -732,6 +804,10 @@ Set in `.env.local` locally (git-ignored) and in the Vercel project settings.
 
 ### Build and deployment
 
+<p align="center"><img src="diagrams/13-deployment.png" alt="Flow: GitHub to a Vercel build, static pages and Node.js functions calling PayPal, Groq, Gemini and Frankfurter" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   REPO["GitHub<br/>lindani11/crossbill-agent"] --> BUILD["Vercel build<br/>next build"]
@@ -740,6 +816,8 @@ flowchart LR
   BUILD --> FN["Node.js functions<br/>/statement and the 6 API routes"]
   FN --> EXT["PayPal · Groq · Gemini · Frankfurter"]
 ```
+
+</details>
 
 The chat and dashboard pages are static HTML; their data arrives through the API routes. The statement page is rendered per request because it reads the dates in its URL.
 
@@ -770,6 +848,7 @@ The chat and dashboard pages are static HTML; their data arrives through the API
 | Paid invoices are re-read one by one on each request | Cache each invoice until PayPal's webhook says it changed |
 | Rate limits and caches are per server instance | A shared store such as Upstash Redis |
 | Sandbox only, one freelancer per deployment | Live mode with Log in with PayPal, one account per freelancer |
+| Overseas clients only: PayPal can't invoice in rand | Rand invoices for local clients, paid by PayShap or instant EFT through a South African payment provider, in the same books |
 | An open dashboard doesn't update by itself when a payment lands | Push the webhook's news to open pages, or refresh on focus |
 | Free AI quotas reset daily; a very busy day could use up all three | A paid tier, or more providers in the same fallback chain |
 | The spot-rate method only | Also offer the SARS average-rate election for the tax year |

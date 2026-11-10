@@ -69,6 +69,10 @@ Any freelancer paid from abroad: tutors, translators, designers, writers, virtua
   <img src="docs/crossbill-architecture.png" width="900" alt="How Crossbill works: 1, describe the job in the chat. 2, the AI agent drafts the invoice and nothing is sent. 3, you approve and PayPal creates and sends it. 4, the client pays. 5, PayPal confirms through a verified webhook. 6, the books update in rand at the rate for that day, in the dashboard and the tax statement.">
 </p>
 
+<p align="center"><img src="docs/diagrams/00-readme-overview.png" alt="Overview: the freelancer, the app, the AI agent with backups, PayPal, the client, the webhook, the books, the dashboard and the tax statement" width="900"></p>
+
+<details><summary>Diagram source (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   F[Freelancer] -->|describes the job| A[Next.js app on Vercel]
@@ -85,6 +89,8 @@ flowchart LR
   L --> D[Dashboard: AG Grid and AG Studio]
   L --> T[Tax statement: PDF and CSV]
 ```
+
+</details>
 
 1. The agent has six tools: `propose_invoice`, `list_invoices`, `earnings`, `income_statement`, `propose_reminder` and `show_examples`. It can **read** from PayPal and **propose** actions, but it cannot send anything. For a greeting, a vague request or something outside its job, it answers in a sentence or two, asks what you need, and shows the example prompts as buttons.
 2. Sending happens in separate routes (`/api/invoices/send`, `/api/invoices/remind`) that run only when you tap Approve. The approval step is enforced in code, not just in the prompt.
@@ -198,6 +204,7 @@ Open http://localhost:3000.
 ## What's next
 
 - Live mode for real PayPal accounts
+- Local clients too: rand invoices paid instantly by PayShap or instant EFT, recorded in the same books as overseas income
 - The optional average-rate method for the tax year
 - Saved clients and default rates
 - Sharing the statement with an accountant
