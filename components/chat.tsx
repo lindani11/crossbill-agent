@@ -38,6 +38,12 @@ type Message = {
 // Also the input's accessible name (aria-label), so it is never only a visual hint.
 const PLACEHOLDER = "Describe the job to invoice, or ask who owes you…";
 
+/** How long bubbles take to fade out; matches .ff-leaving in app/globals.css. */
+const LEAVE_MS = 200;
+
+/** True when the device asks for less motion: bubbles then appear and go at once. */
+const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /** How each AI provider is named under a reply. */
 const PROVIDER_NAMES: Record<string, string> = { groq: "Groq", "groq-small": "Groq (small model)", gemini: "Gemini" };
 
@@ -61,6 +67,9 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   const [error, setError] = useState<string | null>(null);
   // The Help reply: shown at the end of the conversation, never sent to the server.
   const [helpOpen, setHelpOpen] = useState(false);
+  // Bubbles on their way out: the examples and Help as you send, or Help as it closes.
+  const [leaving, setLeaving] = useState(false);
+  const [helpClosing, setHelpClosing] = useState(false);
   const helpId = useId();
   const helpRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -104,13 +113,19 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   // Adds the freelancer's message, asks the agent, then adds its reply (or an error).
   async function send(text: string) {
     const content = text.trim();
-    if (!content || loading) return;
-    setHelpOpen(false);
-    // Show the message at once (an optimistic update), before the reply arrives.
-    const next: Message[] = [...messages, { role: "user", content }];
-    setMessages(next);
+    if (!content || loading || leaving) return;
     setInput("");
     setError(null);
+    // First the example bubbles (and an open Help reply) fade out.
+    if ((messages.length === 0 || helpOpen) && !reduceMotion()) {
+      setLeaving(true);
+      await new Promise((resolve) => setTimeout(resolve, LEAVE_MS));
+      setLeaving(false);
+    }
+    setHelpOpen(false);
+    // Then the message shows (an optimistic update), before the reply arrives.
+    const next: Message[] = [...messages, { role: "user", content }];
+    setMessages(next);
     setLoading(true);
     try {
       const res = await fetch("/api/chat", {
@@ -138,6 +153,20 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
     }
   }
 
+  // Help opens at once and fades out as it closes.
+  function toggleHelp() {
+    if (helpClosing) return;
+    if (!helpOpen || reduceMotion()) {
+      setHelpOpen(!helpOpen);
+      return;
+    }
+    setHelpClosing(true);
+    setTimeout(() => {
+      setHelpOpen(false);
+      setHelpClosing(false);
+    }, LEAVE_MS);
+  }
+
   return (
     <div className="flex flex-1 flex-col pb-4">
       {/* The page heading, for screen readers; the intro now lives in the Help reply. */}
@@ -150,7 +179,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
           type="button"
           aria-expanded={helpOpen}
           aria-controls={helpOpen ? helpId : undefined}
-          onClick={() => setHelpOpen((open) => !open)}
+          onClick={toggleHelp}
           className="ff-help pointer-events-auto"
         >
           <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4">
@@ -164,20 +193,25 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
 
       <div role="log" aria-live="polite" aria-label="Conversation" className="flex-1 space-y-4 py-2">
         {/* Empty chat: the four examples, waiting on the right as your own messages. */}
-        {messages.length === 0 ? <ExampleList examples={examples} onPick={send} /> : null}
+        {messages.length === 0 ? (
+          <div className={leaving ? "ff-leaving" : undefined}>
+            <ExampleList examples={examples} onPick={send} />
+          </div>
+        ) : null}
 
-        {/* The conversation: the freelancer on the right, Crossbill on the left with any cards. */}
+        {/* The conversation: the freelancer on the right, Crossbill on the left with any cards.
+            New bubbles animate in once (yours slide up, Crossbill's pop); keys keep old ones still. */}
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <p className="relative max-w-[85%] rounded-2xl rounded-br-none [overflow-wrap:anywhere] border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)] [--tail-fill:var(--accent)] [--tail-stroke:var(--accent-strong)]">
+              <p className="ff-bubble-in relative max-w-[85%] rounded-2xl rounded-br-none [overflow-wrap:anywhere] border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)] [--tail-fill:var(--accent)] [--tail-stroke:var(--accent-strong)]">
                 {m.content}
                 <Tail side="right" />
               </p>
             </div>
           ) : (
             <div key={i} className="max-w-full">
-              <div className="ff-panel relative rounded-2xl rounded-bl-none px-4 py-3 [--tail-fill:var(--surface)] [--tail-stroke:var(--line)]">
+              <div className="ff-panel ff-bubble-pop relative rounded-2xl rounded-bl-none px-4 py-3 [--tail-fill:var(--surface)] [--tail-stroke:var(--line)]">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)] [overflow-wrap:anywhere]">{m.content}</p>
                 {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
                 {m.suggestions?.length ? (
@@ -185,7 +219,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
                 ) : null}
                 <Tail side="left" />
               </div>
-              {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {PROVIDER_NAMES[m.provider] ?? m.provider}</p> : null}
+              {m.provider ? <p className="on-canvas-muted ff-fade-in mt-1 pl-1 text-[11px]">via {PROVIDER_NAMES[m.provider] ?? m.provider}</p> : null}
             </div>
           ),
         )}
@@ -195,7 +229,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
           <div
             id={helpId}
             ref={helpRef}
-            className="ff-panel relative max-w-[85%] rounded-2xl rounded-bl-none px-4 py-3 text-sm [--tail-fill:var(--surface)] [--tail-stroke:var(--line)]"
+            className={`ff-panel relative max-w-[85%] rounded-2xl rounded-bl-none px-4 py-3 text-sm [--tail-fill:var(--surface)] [--tail-stroke:var(--line)] ${leaving || helpClosing ? "ff-leaving" : "ff-bubble-pop"}`}
           >
             <p className="ff-eyebrow">AI invoicing agent</p>
             <p className="mt-1 text-base font-black tracking-tight text-[var(--ink)]">Describe the job. Approve. Get paid.</p>
@@ -213,13 +247,13 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
 
         {/* role="status" announces "Thinking…" politely; role="alert" (below) at once. */}
         {loading ? (
-          <p role="status" className="ff-panel inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[var(--muted)]">
+          <p role="status" className="ff-panel ff-fade-in inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-[var(--muted)]">
             <span aria-hidden="true" className="ff-spinner" />
             Thinking…
           </p>
         ) : null}
         {error ? (
-          <p role="alert" className="ff-panel rounded-xl border-[var(--danger)] px-4 py-3 text-sm font-semibold text-[var(--danger)]">
+          <p role="alert" className="ff-panel ff-fade-in rounded-xl border-[var(--danger)] px-4 py-3 text-sm font-semibold text-[var(--danger)]">
             {error}
           </p>
         ) : null}

@@ -368,6 +368,33 @@ body {
     animation-play-state: paused;
   }
 
+  /*
+   * Chat motion. Each bubble animates once, when it first appears: yours slide
+   * up into place, Crossbill's pop from the tail corner with a slight
+   * overshoot, and small notes fade in. Bubbles on their way out (the examples
+   * and Help as you send) fade away and stop taking taps. All of it is off for
+   * reduced motion, below.
+   */
+  .ff-bubble-in {
+    transform-origin: bottom right;
+    animation: ff-bubble-in 260ms ease-out both;
+  }
+
+  .ff-bubble-pop {
+    transform-origin: bottom left;
+    animation: ff-bubble-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .ff-fade-in {
+    animation: ff-fade-in 240ms ease-out 120ms both;
+  }
+
+  /* 200ms: keep in step with LEAVE_MS in components/chat.tsx. */
+  .ff-leaving {
+    pointer-events: none;
+    animation: ff-bubble-out 200ms ease-in forwards;
+  }
+
   /* Example dropdown in replies: slides open and closed (grid rows 0fr <-> 1fr). */
   .ff-collapse {
     display: grid;
@@ -450,6 +477,44 @@ body {
   }
   25% {
     background-color: rgb(255 255 255 / 0.45);
+  }
+}
+
+@keyframes ff-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ff-bubble-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ff-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ff-bubble-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
   }
 }
 
@@ -649,7 +714,11 @@ body {
   .ff-tail-glow {
     display: none;
   }
-  .ff-help {
+  .ff-help,
+  .ff-bubble-in,
+  .ff-bubble-pop,
+  .ff-fade-in,
+  .ff-leaving {
     animation: none;
   }
   .ff-marquee {
