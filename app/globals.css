@@ -187,15 +187,17 @@ body {
     font-size: 0.8125rem;
   }
 
+  /* Header tabs: compact on phones (36 px tall) so the header stays one slim
+   * row, roomier from tablet size up. */
   .ff-tab {
     display: inline-flex;
-    min-height: 2.5rem;
+    min-height: 2.25rem;
     align-items: center;
     gap: 0.375rem;
-    border-radius: 0.75rem;
+    border-radius: 0.625rem;
     border: 1px solid transparent;
-    padding: 0.5rem 0.875rem;
-    font-size: 0.875rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
     font-weight: 700;
     color: var(--muted);
     transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
@@ -205,6 +207,15 @@ body {
     border-color: var(--accent-hover);
     background: var(--bg);
     color: var(--ink);
+  }
+
+  @media (min-width: 640px) {
+    .ff-tab {
+      min-height: 2.5rem;
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.875rem;
+      font-size: 0.875rem;
+    }
   }
 
   .ff-tab[aria-current="page"],
