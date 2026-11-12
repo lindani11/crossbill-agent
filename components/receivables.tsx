@@ -96,7 +96,7 @@ const theme = themeQuartz.withParams({
   headerTextColor: "var(--ink)",
   headerFontWeight: 800,
   borderColor: "var(--line-soft)",
-  wrapperBorder: { color: "var(--accent-strong)", width: 2 },
+  wrapperBorder: { color: "var(--line)", width: 1 },
   accentColor: "var(--accent-strong)",
   rowHoverColor: "rgb(125 211 252 / 0.18)",
   oddRowBackgroundColor: "rgb(240 232 218)",

@@ -212,7 +212,7 @@ export default function StudioReports({ rows, currency }: { rows: LedgerRow[]; c
           </button>
         </div>
       </div>
-      <div className="h-[560px] w-full overflow-hidden rounded-2xl border-2 border-[var(--accent-strong)] bg-white">
+      <div className="h-[560px] w-full overflow-hidden rounded-2xl border border-[var(--line)] bg-white">
         <AgStudio
           data={data}
           mode={mode}

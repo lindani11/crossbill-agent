@@ -76,7 +76,7 @@ export default function ProposalCard({ proposal }: { proposal: Proposal }) {
   const done = state.status === "sent" || state.status === "discarded";
 
   return (
-    <div className="mt-3 rounded-2xl border-2 border-[var(--accent-strong)] bg-[var(--surface-strong)] p-4 sm:p-5">
+    <div className="mt-3 rounded-2xl border border-[var(--accent-strong)] bg-[var(--surface-strong)] p-4 sm:p-5">
       {proposal.kind === "invoice" ? (
         <>
           {/* On narrow phones the total drops below the client instead of being pushed off the card. */}

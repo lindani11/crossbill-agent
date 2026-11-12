@@ -3,8 +3,9 @@
 /*
  * app/globals.css · The Crossbill look, on top of Tailwind CSS v4
  *
- * A flat design with a pale cream canvas, white panels with deep-blue edges
- * and sky-blue actions. No textures, shadows, blur or glow; motion only where
+ * A flat design with a pale cream canvas, white panels with thin steel-blue edges
+ * and sky-blue actions. No textures, shadows or glow (the only blur is the
+ * see-through header); motion only where
  * it helps (landing, example flash, dropdown), and none for people who ask
  * for reduced motion.
  *
@@ -29,8 +30,8 @@
   --surface-strong: #ffffff; /* controls */
   --ink: #111827;
   --muted: #374151;
-  --line: #0369a1; /* panel edges */
-  --line-soft: rgb(125 211 252 / 0.7); /* dividers inside panels */
+  --line: #6b84a0; /* edges: thin 1px steel blue, 3:1 or more on every background */
+  --line-soft: #c9d4e0; /* dividers inside panels, table rows, example cards */
   --accent: #38bdf8; /* sky: primary actions, active tab */
   --accent-hover: #7dd3fc;
   --accent-strong: #0369a1; /* deep blue: labels, links, focus, money */
@@ -74,7 +75,7 @@ body {
   }
 
   .ff-panel-strong {
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     background: var(--surface);
   }
 
@@ -84,7 +85,7 @@ body {
     left: 1rem;
     top: -4rem;
     z-index: 50;
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: 0.75rem;
     background: #ffffff;
     padding: 0.5rem 1rem;
@@ -97,9 +98,20 @@ body {
     top: 0.75rem;
   }
 
+  /* The sticky header is half see-through: the page shows faintly as it
+   * scrolls under it, and a light blur keeps the tabs easy to read. */
   .ff-topbar {
-    background: #ffffff;
-    border-bottom: 2px solid var(--line);
+    background: rgb(255 255 255 / 0.55);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
+    backdrop-filter: blur(10px) saturate(1.4);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Without backdrop blur (old browsers), stay opaque enough to read. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .ff-topbar {
+      background: rgb(255 255 255 / 0.92);
+    }
   }
 
   /* Page titles and notes on the canvas. */
@@ -205,7 +217,7 @@ body {
   .ff-input {
     min-height: 3rem;
     border-radius: 0.75rem;
-    border: 2px solid var(--line);
+    border: 1px solid var(--line);
     background: #ffffff;
     padding: 0.75rem 1rem;
     color: var(--ink);
@@ -221,9 +233,9 @@ body {
   }
 
   .ff-input:focus {
-    outline: 2px solid var(--line);
+    outline: 2px solid var(--accent-strong);
     outline-offset: 2px;
-    border-color: var(--line);
+    border-color: var(--accent-strong);
   }
 
   /*
@@ -325,7 +337,7 @@ body {
     width: 0.875rem;
     flex-shrink: 0;
     border-radius: 999px;
-    border: 2px solid var(--line);
+    border: 2px solid var(--accent-strong); /* the spinner keeps its weight */
     border-top-color: transparent;
     animation: ff-spin 0.8s linear infinite;
   }

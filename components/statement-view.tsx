@@ -291,7 +291,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                 <h2 className="on-canvas text-lg font-black">By month</h2>
                 <div className="ff-panel-strong overflow-x-auto rounded-2xl">
                   <table className="w-full min-w-[420px] border-collapse text-sm">
-                    <thead className="border-b-2 border-[var(--line)]">
+                    <thead className="border-b border-[var(--line)]">
                       <tr>
                         <th className={th}>Month</th>
                         <th className={thNum}>Payments</th>
@@ -317,7 +317,7 @@ export default function StatementView({ initialFrom, initialTo }: { initialFrom?
                 <h2 className="on-canvas text-lg font-black">Every payment</h2>
                 <div className="ff-panel-strong overflow-x-auto rounded-2xl">
                   <table className="w-full min-w-[720px] border-collapse text-sm">
-                    <thead className="border-b-2 border-[var(--line)]">
+                    <thead className="border-b border-[var(--line)]">
                       <tr>
                         <th className={th}>Date paid</th>
                         <th className={th}>Invoice</th>
