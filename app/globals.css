@@ -250,45 +250,122 @@ body {
   }
 
   /*
-   * Example prompts: all cards flash cream together every 3 seconds, so they
-   * read as tappable. The flash colour animates on a layer behind the text and
-   * never stops or restarts, so the cards always stay in step. While the
-   * pointer is over the list, the layer fades out (locked); it fades back in,
-   * still in step, when the pointer leaves. The lock uses opacity, which the
-   * animation never touches, so it cannot disturb the timing.
+   * Chat bubbles: a small SVG tail (components/chat.tsx, Tail) sits on the
+   * bubble's square bottom corner and continues its 1px edge. Each bubble sets
+   * --tail-fill and --tail-stroke to its own background and edge colours.
    */
-  .ff-option {
-    position: relative;
-    isolation: isolate;
-    border: 1px solid var(--line-soft);
-    background: #ffffff;
+  .ff-tail {
+    position: absolute;
+    bottom: -1px;
+    overflow: visible;
+    pointer-events: none;
   }
 
-  .ff-option::before {
+  .ff-tail-right {
+    right: -10px;
+  }
+
+  .ff-tail-left {
+    left: -10px;
+  }
+
+  .ff-tail-fill {
+    fill: var(--tail-fill);
+    transition: fill 150ms ease;
+  }
+
+  .ff-tail-edge {
+    fill: none;
+    stroke: var(--tail-stroke);
+    stroke-width: 1;
+  }
+
+  /*
+   * Example bubbles: your own messages, ready to send. All of them glow lighter
+   * together every 3 seconds, so they read as tappable. The glow animates on a
+   * layer behind the text and never stops or restarts, so the bubbles always
+   * stay in step. While the pointer or focus is in the list, the layer fades
+   * out (locked); it fades back in, still in step, when they leave. The lock
+   * uses opacity, which the animation never touches, so it cannot disturb the
+   * timing.
+   */
+  .ff-sample {
+    isolation: isolate;
+    border: 1px solid var(--accent-strong);
+    background: var(--accent);
+    color: var(--accent-ink);
+    --tail-fill: var(--accent);
+    --tail-stroke: var(--accent-strong);
+    transition: background-color 150ms ease;
+  }
+
+  .ff-sample::before {
     content: "";
     position: absolute;
     inset: 0;
     z-index: -1;
     border-radius: inherit;
-    background-color: rgb(196 178 140 / 0);
-    animation: ff-flash 3s ease-in-out infinite;
+    background-color: rgb(255 255 255 / 0);
+    animation: ff-glow 3s ease-in-out infinite;
     transition: opacity 200ms ease;
   }
 
-  .ff-options:focus-within .ff-option::before {
+  /* The tail glows with its bubble: same timing, its own layer. */
+  .ff-tail-glow {
+    fill: #ffffff;
+    fill-opacity: 0;
+    animation: ff-tail-glow 3s ease-in-out infinite;
+    transition: opacity 200ms ease;
+  }
+
+  .ff-options:focus-within .ff-sample::before,
+  .ff-options:focus-within .ff-tail-glow {
     opacity: 0;
   }
 
   @media (hover: hover) {
-    .ff-options:hover .ff-option::before {
+    .ff-options:hover .ff-sample::before,
+    .ff-options:hover .ff-tail-glow {
       opacity: 0;
     }
   }
 
-  .ff-option:hover,
-  .ff-option:focus-visible {
-    border-color: var(--line);
-    background: var(--bg);
+  .ff-sample-btn:hover .ff-sample,
+  .ff-sample-btn:focus-visible .ff-sample {
+    background: var(--accent-hover);
+    --tail-fill: var(--accent-hover);
+  }
+
+  /* Help: a small sky-blue bubble that pops in, then floats gently. */
+  .ff-help {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    border: 1px solid var(--accent-strong);
+    background: var(--accent);
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    color: var(--accent-ink);
+    box-shadow: 0 6px 14px -6px rgb(3 105 161 / 0.55);
+    animation:
+      ff-pop 600ms ease-out both,
+      ff-float 3.2s ease-in-out 600ms infinite;
+    transition: background-color 150ms ease;
+  }
+
+  .ff-help:hover,
+  .ff-help[aria-expanded="true"] {
+    background: var(--accent-hover);
+  }
+
+  /* It holds still while you point at it, focus it or have it open. */
+  .ff-help:hover,
+  .ff-help:focus-visible,
+  .ff-help[aria-expanded="true"] {
+    animation-play-state: paused;
   }
 
   /* Example dropdown in replies: slides open and closed (grid rows 0fr <-> 1fr). */
@@ -365,14 +442,49 @@ body {
 }
 
 /* 4. Keyframes */
-@keyframes ff-flash {
+@keyframes ff-glow {
   0%,
   60%,
   100% {
-    background-color: rgb(196 178 140 / 0);
+    background-color: rgb(255 255 255 / 0);
   }
   25% {
-    background-color: rgb(196 178 140 / 0.76);
+    background-color: rgb(255 255 255 / 0.45);
+  }
+}
+
+@keyframes ff-tail-glow {
+  0%,
+  60%,
+  100% {
+    fill-opacity: 0;
+  }
+  25% {
+    fill-opacity: 0.45;
+  }
+}
+
+@keyframes ff-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.04);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes ff-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
 
@@ -533,8 +645,12 @@ body {
     animation: none;
     opacity: 0.6;
   }
-  .ff-option::before {
+  .ff-sample::before,
+  .ff-tail-glow {
     display: none;
+  }
+  .ff-help {
+    animation: none;
   }
   .ff-marquee {
     animation: none;

@@ -11,8 +11,12 @@ import { buildExamples, type Example } from "@/lib/examples";
  * A Client Component ("use client"): the conversation lives in React state in
  * this tab only. Nothing is stored; a refresh starts a new chat.
  *
+ * A phone-first chat: the examples wait on the right as your own bubbles,
+ * ready to send; Crossbill answers on the left; a small floating Help bubble
+ * under the header brings up the intro as a reply from Crossbill.
+ *
  * How it connects
- *   app/page.tsx → <Chat testEmails> → buildExamples() → the example cards
+ *   app/page.tsx → <Chat testEmails> → buildExamples() → the example bubbles
  *   send() → POST /api/chat (the last 20 messages) → lib/agent.ts runAgent()
  *     ← { text, proposals, suggestions, provider }
  *        proposals   → <ProposalCard> with Approve & send
@@ -55,10 +59,14 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The Help reply: shown at the end of the conversation, never sent to the server.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId();
+  const helpRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Every visit or refresh opens at the top: the intro, the examples and the input.
+  // Every visit or refresh opens at the top: Help, the examples and the input.
   useEffect(() => {
     const { history } = window;
     const previous = history.scrollRestoration;
@@ -79,6 +87,13 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
     el.style.height = `${Math.min(el.scrollHeight + borders, max)}px`;
   }, [input]);
 
+  // Bring the Help reply into view when it opens.
+  useEffect(() => {
+    if (!helpOpen) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    helpRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+  }, [helpOpen]);
+
   // Follow the conversation only once it has started.
   useEffect(() => {
     if (messages.length === 0 && !loading) return;
@@ -90,6 +105,7 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   async function send(text: string) {
     const content = text.trim();
     if (!content || loading) return;
+    setHelpOpen(false);
     // Show the message at once (an optimistic update), before the reply arrives.
     const next: Message[] = [...messages, { role: "user", content }];
     setMessages(next);
@@ -124,49 +140,76 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
 
   return (
     <div className="flex flex-1 flex-col pb-4">
+      {/* The page heading, for screen readers; the intro now lives in the Help reply. */}
+      <h1 className="sr-only">Chat with Crossbill</h1>
+
+      {/* Help: pinned under the header on the right and floating gently. The row
+          lets taps through to the chat scrolling under it; only the button takes them. */}
+      <div className="pointer-events-none sticky top-14 z-20 flex justify-end sm:top-16">
+        <button
+          type="button"
+          aria-expanded={helpOpen}
+          aria-controls={helpOpen ? helpId : undefined}
+          onClick={() => setHelpOpen((open) => !open)}
+          className="ff-help pointer-events-auto"
+        >
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4">
+            <circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M7.75 7.6a2.3 2.3 0 0 1 4.5.6c0 1.5-2.25 1.9-2.25 3.3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="10" cy="14.4" r="0.95" fill="currentColor" />
+          </svg>
+          Help
+        </button>
+      </div>
+
       <div role="log" aria-live="polite" aria-label="Conversation" className="flex-1 space-y-4 py-2">
-        {/* Empty chat: the intro and the four example prompts. */}
-        {messages.length === 0 ? (
-          <>
-            <div>
-              <p className="ff-eyebrow">AI invoicing agent</p>
-              <h1 className="on-canvas mt-1 text-3xl font-black tracking-tight">Describe the job. Approve. Get paid.</h1>
-              <p className="on-canvas-muted mt-2 text-sm leading-6">
-                Crossbill drafts a real PayPal invoice, sends it only when you approve, chases late payers and keeps
-                your books in rand.
-              </p>
-            </div>
-            <div className="ff-panel-strong rounded-2xl p-4 sm:p-5">
-              <p className="ff-eyebrow">Works for any freelancer · try one below</p>
-              <ExampleList examples={examples} onPick={send} />
-            </div>
-          </>
-        ) : (
-          // The intro (with the page heading) is gone once the chat starts; keep a heading for screen readers.
-          <h1 className="sr-only">Chat with Crossbill</h1>
-        )}
+        {/* Empty chat: the four examples, waiting on the right as your own messages. */}
+        {messages.length === 0 ? <ExampleList examples={examples} onPick={send} /> : null}
 
         {/* The conversation: the freelancer on the right, Crossbill on the left with any cards. */}
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-sm [overflow-wrap:anywhere] border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)]">
+              <p className="relative max-w-[85%] rounded-2xl rounded-br-none [overflow-wrap:anywhere] border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--accent-ink)] [--tail-fill:var(--accent)] [--tail-stroke:var(--accent-strong)]">
                 {m.content}
+                <Tail side="right" />
               </p>
             </div>
           ) : (
             <div key={i} className="max-w-full">
-              <div className="ff-panel rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="ff-panel relative rounded-2xl rounded-bl-none px-4 py-3 [--tail-fill:var(--surface)] [--tail-stroke:var(--line)]">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)] [overflow-wrap:anywhere]">{m.content}</p>
                 {m.proposals?.map((p, j) => <ProposalCard key={j} proposal={p} />)}
                 {m.suggestions?.length ? (
                   <ExampleDropdown examples={m.suggestions} onPick={send} disabled={loading} />
                 ) : null}
+                <Tail side="left" />
               </div>
               {m.provider ? <p className="on-canvas-muted mt-1 pl-1 text-[11px]">via {PROVIDER_NAMES[m.provider] ?? m.provider}</p> : null}
             </div>
           ),
         )}
+
+        {/* The Help reply: what used to be the intro, as a message from Crossbill. */}
+        {helpOpen ? (
+          <div
+            id={helpId}
+            ref={helpRef}
+            className="ff-panel relative max-w-[85%] rounded-2xl rounded-bl-none px-4 py-3 text-sm [--tail-fill:var(--surface)] [--tail-stroke:var(--line)]"
+          >
+            <p className="ff-eyebrow">AI invoicing agent</p>
+            <p className="mt-1 text-base font-black tracking-tight text-[var(--ink)]">Describe the job. Approve. Get paid.</p>
+            <p className="mt-1 leading-relaxed text-[var(--muted)]">
+              Crossbill drafts a real PayPal invoice, sends it only when you approve, chases late payers and keeps your
+              books in rand.
+            </p>
+            <p className="mt-2 leading-relaxed text-[var(--muted)]">
+              It works for any freelancer. The examples show a tutor, a developer and a translator invoicing a client,
+              and a question any freelancer asks. Tap one to send it, or type your own below.
+            </p>
+            <Tail side="left" />
+          </div>
+        ) : null}
 
         {/* role="status" announces "Thinking…" politely; role="alert" (below) at once. */}
         {loading ? (
@@ -232,7 +275,39 @@ export default function Chat({ testEmails = [] }: { testEmails?: string[] }) {
   );
 }
 
-/** Example prompts as tappable cards; tapping one sends it. */
+/**
+ * The small tail that turns a box into a chat bubble, on its square bottom
+ * corner. Colours come from --tail-fill and --tail-stroke. glow adds a layer
+ * that lights up with an example bubble's glow.
+ */
+function Tail({ side, glow = false }: { side: "left" | "right"; glow?: boolean }) {
+  const right = side === "right";
+  // The fill (and its glow) reaches 1px into the bubble to hide its straight edge under the curve.
+  const fill = right ? "M-1 0H0.5C0.5 6 3 10 9.5 11.5H-1Z" : "M11 0H9.5C9.5 6 7 10 0.5 11.5H11Z";
+  // The edge is open where it meets the bubble, so it continues the bubble's border.
+  const edge = right ? "M0.5 0C0.5 6 3 10 9.5 11.5H-1" : "M9.5 0C9.5 6 7 10 0.5 11.5H11";
+  return (
+    <svg aria-hidden="true" width="10" height="12" viewBox="0 0 10 12" className={`ff-tail ff-tail-${side}`}>
+      <path className="ff-tail-fill" d={fill} />
+      {glow ? <path className="ff-tail-glow" d={fill} /> : null}
+      <path className="ff-tail-edge" d={edge} />
+    </svg>
+  );
+}
+
+/** The paper-plane send icon beside each example. Decoration only. */
+function PaperPlane() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-[var(--accent-strong)]">
+      <path fill="currentColor" d="M1.5 1.5 22.5 12 1.5 22.5 3.6 13.1 16 12 3.6 10.9Z" />
+    </svg>
+  );
+}
+
+/**
+ * Example prompts as your own chat bubbles, waiting on the right with a
+ * paper-plane icon, in small text; tapping one sends it.
+ */
 function ExampleList({
   examples,
   onPick,
@@ -243,19 +318,20 @@ function ExampleList({
   disabled?: boolean;
 }) {
   return (
-    <div className="ff-options mt-3 flex flex-col gap-2">
+    <div className="ff-options flex flex-col items-end gap-3 py-1">
       {examples.map((ex) => (
         <button
           key={ex.text}
           type="button"
           disabled={disabled}
           onClick={() => onPick(ex.text)}
-          className="ff-option rounded-xl px-4 py-3 text-left text-sm text-[var(--ink)] [overflow-wrap:anywhere] disabled:cursor-not-allowed disabled:opacity-60"
+          className="ff-sample-btn flex max-w-[92%] items-center gap-4 rounded-2xl text-left disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span className="mb-0.5 block text-[11px] font-black uppercase tracking-[0.12em] text-[var(--accent-strong)]">
-            {ex.who}
+          <span className="ff-sample relative min-w-0 rounded-2xl rounded-br-none px-3.5 py-2 text-xs font-medium leading-snug [overflow-wrap:anywhere]">
+            {ex.text}
+            <Tail side="right" glow />
           </span>
-          {ex.text}
+          <PaperPlane />
         </button>
       ))}
     </div>
@@ -300,7 +376,9 @@ function ExampleDropdown({
       {/* inert while closed: hidden buttons can't be tabbed to or read out. */}
       <div id={id} className="ff-collapse" data-open={open} inert={!open}>
         <div className="ff-collapse-inner">
-          <ExampleList examples={examples} onPick={onPick} disabled={disabled} />
+          <div className="pt-2">
+            <ExampleList examples={examples} onPick={onPick} disabled={disabled} />
+          </div>
         </div>
       </div>
     </div>
