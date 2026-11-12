@@ -54,7 +54,11 @@ function plainText(text: string): string {
     .replace(/__(.+?)__/g, "$1")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/`([^`]+)`/g, "$1")
-    .replace(/^\s*[*•]\s+/gm, "- ");
+    .replace(/^\s*[*•]\s+/gm, "- ")
+    // Empty brackets left behind when a stray tool call is cleaned out of a reply.
+    .replace(/[ \t]*\(\s*\)/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /** testEmails come from the server (app/page.tsx), for the example prompts. */
